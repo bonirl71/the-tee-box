@@ -50,3 +50,30 @@
 /* REV 1.6.0 quote workflow */
 .workflow-note{margin:.35rem 0 0;color:var(--muted);font-size:.8rem}.workflow-steps{display:grid;gap:10px;margin:14px 0}.workflow-step{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center;padding:13px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.025)}.workflow-step .step-number{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--gold);color:var(--navy);font-weight:800;font-size:.75rem}.workflow-step b{display:block;font-size:.82rem}.workflow-step small{display:block;color:var(--muted);font-size:.72rem;margin-top:3px}.workflow-step .button{min-width:170px}.distance-field{display:grid;grid-template-columns:minmax(100px,1fr) 34px;gap:0;min-width:190px}.distance-field span{grid-column:1/-1;font-size:.7rem;margin-bottom:5px;color:var(--muted)}.distance-field input{border-radius:5px 0 0 5px}.distance-field em{font-style:normal;display:grid;place-items:center;border:1px solid var(--line);border-left:0;border-radius:0 5px 5px 0;color:var(--gold)}.quote-build-area{margin-top:14px}.quote-lines{border:1px solid var(--line);border-radius:7px;overflow:hidden}.quote-line{display:grid;grid-template-columns:1fr 180px;gap:20px;align-items:center;padding:13px 15px;border-bottom:1px solid var(--line)}.quote-line:last-child{border-bottom:0}.quote-line b{display:block;font-size:.8rem}.quote-line small{color:var(--muted);font-size:.7rem}.money-field{display:grid;grid-template-columns:34px 1fr}.money-field span{display:grid;place-items:center;border:1px solid var(--line);border-right:0;border-radius:5px 0 0 5px;color:var(--gold)}.money-field input{border-radius:0 5px 5px 0}.quote-calc-controls{display:flex;justify-content:flex-end;align-items:end;gap:14px;margin-top:14px}.quote-calc-controls label{display:grid;gap:5px;font-size:.72rem;color:var(--muted)}.quote-calc-controls input{width:100px}.quote-result-card{margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.025);min-height:70px}.quote-result-card>strong,.quote-result-card>span{display:block}.quote-result-card>span{color:var(--muted);font-size:.8rem;margin-top:4px}.quote-itemized{display:grid;gap:0}.quote-itemized>div{display:flex;justify-content:space-between;gap:20px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:.82rem}.quote-itemized .subtotal{margin-top:5px;border-top:1px solid var(--line)}.quote-itemized .grand-total{border-bottom:0;padding-top:13px;font-size:1.05rem;color:var(--cream)}.quote-itemized .grand-total strong{color:var(--gold)}
 @media(max-width:900px){.workflow-step{grid-template-columns:30px 1fr}.workflow-step .button,.distance-field{grid-column:2;min-width:0;width:100%}.quote-line{grid-template-columns:1fr 140px}}
+
+/* REV 1.6.1 — workflow cleanup, reliable route launch, PIN recovery and pricing baseline */
+.workflow-steps{gap:12px}
+.workflow-step{grid-template-columns:34px minmax(220px,1fr) auto;min-height:78px}
+.workflow-step-content{min-width:0}
+.workflow-step-content b{font-size:.86rem}
+.workflow-step-content small{max-width:560px;line-height:1.45}
+.workflow-distance-step{grid-template-columns:34px minmax(220px,1fr) 180px auto}
+.distance-entry{display:grid;gap:5px;min-width:180px}
+.distance-entry label{font-size:.72rem;color:var(--muted);font-weight:700}
+.distance-input{display:grid;grid-template-columns:1fr 40px}
+.distance-input input{border-radius:5px 0 0 5px;min-width:0}
+.distance-input span{display:grid;place-items:center;background:rgba(255,255,255,.05);border:1px solid var(--line);border-left:0;border-radius:0 5px 5px 0;color:var(--gold);font-weight:700}
+.workflow-step .button{align-self:center}
+.quote-build-area{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.quote-calc-controls{justify-content:space-between}
+.quote-calc-controls label{min-width:120px}
+#quoteVatRate{width:120px}
+.travel-grid{grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) auto}
+.travel-action{justify-content:flex-end}
+.travel-action .button{flex:0 0 auto;min-width:230px}
+.inline-form{max-width:680px}
+.inline-form .button{white-space:nowrap}
+@media(max-width:1050px){.workflow-distance-step{grid-template-columns:34px minmax(180px,1fr) 160px}.workflow-distance-step #useManualDistance{grid-column:2 / -1;justify-self:start}.workflow-step{grid-template-columns:34px 1fr}.workflow-step>.button{grid-column:2;justify-self:start}.travel-grid{grid-template-columns:1fr 1fr}.travel-action{grid-column:1 / -1;justify-content:flex-start}}
+@media(max-width:700px){.workflow-distance-step{grid-template-columns:30px 1fr}.distance-entry{grid-column:2;width:100%}.workflow-distance-step #useManualDistance{grid-column:2;width:100%}.workflow-step>.button{width:100%}.quote-calc-controls{align-items:stretch;flex-direction:column}.quote-calc-controls label,#quoteVatRate{width:100%}.inline-form{max-width:none}.inline-form .button{width:100%}}
+
+.status-pill.quote-sent-to-customer{color:#9fc5ff}
