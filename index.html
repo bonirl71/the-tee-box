@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Request a Quote | REV 1.5.0</title>
+<title>THE TEE BOX | Request a Quote | REV 1.6.0</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div class="revision-badge" aria-label="App revision">REV 1.5.0</div>
+<div class="revision-badge" aria-label="App revision">REV 1.6.0</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX Banner"></a>
@@ -163,18 +163,32 @@
         <label>20 – 50 km<div class="price-input"><span>€</span><input id="travel20" type="number" min="0" step="1"></div></label>
         <label>50 – 100 km<div class="price-input"><span>€</span><input id="travel50" type="number" min="0" step="1"></div></label>
         <label>100+ km<div class="price-input"><span>€</span><input id="travel100" type="number" min="0" step="1"></div></label>
+        <label>VAT Rate<div class="price-input"><span>%</span><input id="vatRate" type="number" min="0" max="100" step="0.1" value="23"></div></label>
       </div>
       <button id="savePricing" class="button button-gold" type="button">SAVE PRICING</button><p id="pricingSaved" class="form-note"></p>
     </div>
-    <div class="card office-panel">
-      <div class="card-heading"><p class="eyebrow">SELECTED REQUEST</p><h3>Quote calculator</h3></div>
+    <div class="card office-panel quote-workflow-panel">
+      <div class="card-heading"><p class="eyebrow">QUOTE WORKFLOW</p><h3>Selected quote</h3><p class="workflow-note">Work through the steps below in order.</p></div>
       <div id="quoteSelectionBadge" class="selection-badge">No request selected</div>
-      <button id="calculateQuote" class="button button-gold" type="button">CALCULATE QUOTE</button>
-      <div id="quoteCalculation" class="travel-result"><strong>Select a request from the table above.</strong><span>The customer Eircode will be loaded automatically.</span></div>
+      <div class="workflow-steps">
+        <div class="workflow-step"><span class="step-number">1</span><div><b>Calculate distance</b><small>Open Google Maps for the selected customer's Eircode.</small></div><button id="calculateTravel" class="button" type="button">CALCULATE DISTANCE</button></div>
+        <div class="workflow-step"><span class="step-number">2</span><div><b>Enter driving distance</b><small>Take the driving distance from Google Maps and enter it below.</small></div><label class="distance-field"><span>Driving distance</span><input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="e.g. 25.4"><em>km</em></label><button id="useManualDistance" class="button" type="button">SAVE DISTANCE</button></div>
+        <div class="workflow-step"><span class="step-number">3</span><div><b>Prepare quote</b><small>Build the three editable quote lines.</small></div><button id="prepareQuote" class="button" type="button">PREPARE QUOTE</button></div>
+      </div>
+      <div id="quoteBuildArea" hidden>
+        <div class="quote-lines">
+          <div class="quote-line"><div><b>Service</b><small id="serviceLineLabel">—</small></div><div class="money-field"><span>€</span><input id="serviceAmount" type="number" min="0" step="0.01"></div></div>
+          <div class="quote-line"><div><b>Travel</b><small id="travelLineLabel">Enter and save driving distance first</small></div><div class="money-field"><span>€</span><input id="travelAmount" type="number" min="0" step="0.01" readonly></div></div>
+          <div class="quote-line"><div><b>Miscellaneous</b><small>Optional additional cost</small></div><div class="money-field"><span>€</span><input id="miscAmount" type="number" min="0" step="0.01" value="0"></div></div>
+        </div>
+        <div class="quote-calc-controls"><label>VAT rate<input id="vatRate" type="number" min="0" max="100" step="0.1" value="23"></label><button id="calculateQuote" class="button button-gold" type="button">CALCULATE QUOTE</button></div>
+      </div>
+      <div id="quoteCalculation" class="quote-result-card"><strong>Select a request above.</strong><span>The selected customer and Eircode will flow through the quote steps.</span></div>
       <div id="sendQuoteArea" class="send-quote-area" hidden>
-        <label>Message to customer<textarea id="quoteMessage" rows="5">Thank you for your quote request. We would be delighted to provide THE TEE BOX for your event.</textarea></label>
+        <div class="card-heading"><p class="eyebrow">STEP 5</p><h3>Prepare the quote email</h3></div>
+        <label>Optional message to customer<textarea id="quoteMessage" rows="4">Thank you for your quote request. We would be delighted to provide THE TEE BOX for your event.</textarea></label>
         <div id="quoteEmailPreview" class="email-preview"></div>
-        <button id="sendQuote" class="button button-gold" type="button">PREPARE QUOTE EMAIL</button>
+        <button id="sendQuote" class="button button-gold" type="button">SEND QUOTE EMAIL</button>
         <p id="sendQuoteStatus" class="form-note"></p>
       </div>
       <div id="quoteStatusActions" class="status-actions" hidden>
@@ -191,9 +205,9 @@
       <label>Customer Eircode<input id="travelEircode" type="text" placeholder="Select a quote request" readonly></label>
       <label>THE TEE BOX Eircode<input id="baseEircode" type="text" value="E45 WC97" placeholder="E45 WC97"></label>
       <label>Manual driving distance (km)<input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="Enter road distance"></label>
-      <div class="travel-action"><button id="calculateTravel" class="button button-gold" type="button">CALCULATE DISTANCE</button><button id="useManualDistance" class="button" type="button">USE MANUAL DISTANCE</button><button id="planRoute" class="button" type="button">PLAN ROUTE TO CUSTOMER</button></div>
+      <div class="travel-action"><button id="planRoute" class="button" type="button">PLAN ROUTE TO CUSTOMER</button></div>
     </div>
-    <div id="travelResult" class="travel-result"><strong>Select a quote request.</strong><span>Enter the actual road distance above if you want to calculate the travel charge manually. A live route service can also be used when connected.</span></div>
+    <div id="travelResult" class="travel-result"><strong>Select a quote request.</strong><span>Select a quote above. The quote workflow opens Google Maps, then lets you enter the driving distance manually.</span></div>
   </div>
 
   <div class="card office-panel journey-panel">
@@ -238,7 +252,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.5.0</strong></div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.0</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
