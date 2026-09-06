@@ -190,9 +190,10 @@
     <div class="travel-grid">
       <label>Customer Eircode<input id="travelEircode" type="text" placeholder="Select a quote request" readonly></label>
       <label>THE TEE BOX Eircode<input id="baseEircode" type="text" value="E45 WC97" placeholder="E45 WC97"></label>
-      <div class="travel-action"><button id="calculateTravel" class="button button-gold" type="button">CALCULATE DISTANCE</button><button id="planRoute" class="button" type="button">PLAN ROUTE TO CUSTOMER</button></div>
+      <label>Manual driving distance (km)<input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="Enter road distance"></label>
+      <div class="travel-action"><button id="calculateTravel" class="button button-gold" type="button">CALCULATE DISTANCE</button><button id="useManualDistance" class="button" type="button">USE MANUAL DISTANCE</button><button id="planRoute" class="button" type="button">PLAN ROUTE TO CUSTOMER</button></div>
     </div>
-    <div id="travelResult" class="travel-result"><strong>Select a quote request.</strong><span>Distance is calculated from the configured route service; no demo distance or 0 km fallback is used.</span></div>
+    <div id="travelResult" class="travel-result"><strong>Select a quote request.</strong><span>Enter the actual road distance above if you want to calculate the travel charge manually. A live route service can also be used when connected.</span></div>
   </div>
 
   <div class="card office-panel journey-panel">
