@@ -122,7 +122,11 @@ function renderOffice(){
       <td><span class="status-pill ${statusClass(r.status)}">${escapeHtml(r.status||"New")}</span></td>
       <td>${r.quoteAmount!=null?`€${Number(r.quoteAmount).toFixed(0)}`:"—"}</td>
       <td>${r.routeDistanceKm!=null?`${Number(r.routeDistanceKm).toFixed(1)} km`:"—"}</td>
-      <td><button class="table-action select-request" data-id="${escapeHtml(r.id)}" type="button">${state.selectedRequestId===r.id?"SELECTED":"SELECT"}</button></td>
+      <td><div class="row-actions">
+        <button class="table-action select-request" data-id="${escapeHtml(r.id)}" type="button">${state.selectedRequestId===r.id?"SELECTED":"SELECT"}</button>
+        <button class="table-action decline-request" data-id="${escapeHtml(r.id)}" type="button">DECLINE</button>
+        <button class="table-action danger delete-request" data-id="${escapeHtml(r.id)}" type="button" aria-label="Delete ${escapeHtml(r.name)} quote">DELETE</button>
+      </div></td>
     </tr>`).join("");
     body.querySelectorAll(".select-request").forEach(b=>b.addEventListener("click",()=>selectRequestForQuote(b.dataset.id)));
     body.querySelectorAll(".accept-quote").forEach(cb=>cb.addEventListener("change",()=>toggleAccepted(cb.dataset.id,cb.checked)));
@@ -139,7 +143,7 @@ function selectRequestForQuote(id){
   if($("distanceMapStatus"))$("distanceMapStatus").textContent="";
   $("quoteSelectionBadge").textContent=`${r.reference} · ${r.name}`;
   $("quoteBuildArea").hidden=true;
-  $("sendQuoteArea").hidden=true;
+  $("quoteSendRow").hidden=true;
   $("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Reference: ${escapeHtml(r.reference)}</span><span>Customer Eircode: ${escapeHtml(r.eircode)}</span><span>Step 1: click CALCULATE DISTANCE, then enter the Google Maps driving distance.</span>`;
   renderOffice();
   requestAnimationFrame(()=>{
@@ -148,6 +152,17 @@ function selectRequestForQuote(id){
   });
 }
 function updateStatusButtons(r){}
+function openNewTab(url){
+  const a=document.createElement("a");
+  a.href=url;
+  a.target="_blank";
+  a.rel="noopener noreferrer";
+  a.style.display="none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  return true;
+}
 function openGoogleRoute(){
   const r=state.selectedRequestId?repairRequests().find(x=>x.id===state.selectedRequestId):null;
   const customer=normaliseEircode(r?.eircode),base=normaliseEircode(getOwner().eircode);
@@ -155,9 +170,8 @@ function openGoogleRoute(){
   if(!customer){if(status)status.textContent="Select a quote request first.";return false}
   if(!base){if(status)status.textContent="Business Eircode is missing. Update it in Admin.";return false}
   const url=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`;
-  const popup=window.open(url,"_blank","noopener,noreferrer");
-  if(!popup){window.location.href=url;return true}
-  if(status)status.textContent=`Google Maps opened: ${base} → ${customer}`;
+  openNewTab(url);
+  if(status)status.textContent=`Google Maps opened in a new tab: ${base} → ${customer}`;
   return true;
 }
 function calculateTravel(){ return openGoogleRoute(); }
@@ -173,23 +187,38 @@ function useManualDistance(){
   return {km:rounded,cost,source:"manual"};
 }
 function prepareQuote(){
-  const id=state.selectedRequestId;if(!id){$("quoteCalculation").innerHTML='<strong>Select a quote request first.</strong><span>Choose a row from All Quote Requests.</span>';return}
-  const r=repairRequests().find(x=>x.id===id);if(!r)return;
-  if(r.routeDistanceKm==null){$("quoteCalculation").innerHTML='<strong>Driving distance required.</strong><span>Complete Step 1 in Google Maps, enter the distance in Step 2 and click SAVE DISTANCE.</span>';return}
+  const id=state.selectedRequestId;
+  if(!id){$("quoteCalculation").innerHTML='<strong>Select a quote request first.</strong><span>Choose a row from All Quote Requests.</span>';return}
+  const r=repairRequests().find(x=>x.id===id);
+  if(!r)return;
+  if(r.routeDistanceKm==null){$("quoteCalculation").innerHTML='<strong>Driving distance required.</strong><span>Open Google Maps, enter the driving distance and click SAVE DISTANCE first.</span>';return}
   const p=getPricing(),service=Number(p[priceKey(r.period)])||0,travel=Number(r.travelCharge!=null?r.travelCharge:travelCost(r.routeDistanceKm,p))||0;
-  $("serviceAmount").value=service.toFixed(2);$("travelAmount").value=travel.toFixed(2);$("miscAmount").value=Number(r.miscAmount||0).toFixed(2);$("quoteVatRate").value=Number(r.vatRate!=null?r.vatRate:(p.vatRate??23));
-  $("serviceLineLabel").textContent=`${r.period} · ${r.duration}`;$("travelLineLabel").textContent=`${Number(r.routeDistanceKm).toFixed(1)} km · configured distance band`;
-  $("quoteBuildArea").hidden=false;$("quoteCalculation").innerHTML='<strong>Quote lines ready.</strong><span>Review the three amounts, add Miscellaneous if required, then click CALCULATE QUOTE.</span>';
+  if($("quoteBuildArea").hidden){
+    $("serviceAmount").value=service.toFixed(2);
+    $("travelAmount").value=travel.toFixed(2);
+    $("miscAmount").value=Number(r.miscAmount||0).toFixed(2);
+    $("quoteVatRate").value=Number(r.vatRate!=null?r.vatRate:(p.vatRate??23));
+    $("serviceLineLabel").textContent=`${r.period} · ${r.duration}`;
+    $("travelLineLabel").textContent=`${Number(r.routeDistanceKm).toFixed(1)} km · configured distance band`;
+    $("quoteBuildArea").hidden=false;
+  }
+  calculateQuote();
 }
 function calculateQuote(){
-  const id=state.selectedRequestId;if(!id){$("quoteCalculation").innerHTML='<strong>No request selected.</strong><span>Select a request from the quote table first.</span>';return}
-  const r=repairRequests().find(x=>x.id===id);if(!r)return;
-  if(r.routeDistanceKm==null){$("quoteCalculation").innerHTML='<strong>Distance required.</strong><span>Complete Steps 1 and 2 before calculating the quote.</span>';return}
+  const id=state.selectedRequestId;
+  if(!id){$("quoteCalculation").innerHTML='<strong>No request selected.</strong><span>Select a request from the quote table first.</span>';return}
+  const r=repairRequests().find(x=>x.id===id);
+  if(!r)return;
+  if(r.routeDistanceKm==null){$("quoteCalculation").innerHTML='<strong>Distance required.</strong><span>Open Google Maps, enter the driving distance and click SAVE DISTANCE first.</span>';return}
   const service=Math.max(0,Number($("serviceAmount").value)||0),travel=Math.max(0,Number($("travelAmount").value)||0),misc=Math.max(0,Number($("miscAmount").value)||0),vatRate=Math.max(0,Number($("quoteVatRate").value)||0),subtotal=service+travel+misc,vat=subtotal*vatRate/100,total=subtotal+vat;
-  const updated=repairRequests().map(x=>x.id===id?{...x,sessionPrice:service,travelCharge:travel,miscAmount:misc,vatRate,quoteSubtotal:subtotal,vatAmount:vat,quoteAmount:total}:x);saveRequests(updated);
-  const saved=updated.find(x=>x.id===id);renderQuoteEmailPreview(saved,total);$("sendQuoteArea").hidden=false;$("sendQuoteArea").dataset.total=String(total);$("sendQuoteArea").dataset.requestId=id;
+  const updated=repairRequests().map(x=>x.id===id?{...x,sessionPrice:service,travelCharge:travel,miscAmount:misc,vatRate,quoteSubtotal:subtotal,vatAmount:vat,quoteAmount:total}:x);
+  saveRequests(updated);
+  const saved=updated.find(x=>x.id===id);
   const miscLine=misc>0?`<div><span>Miscellaneous</span><strong>€${misc.toFixed(2)}</strong></div>`:"";
   $("quoteCalculation").innerHTML=`<div class="quote-itemized"><div><span>Service — ${escapeHtml(r.period)}</span><strong>€${service.toFixed(2)}</strong></div><div><span>Travel — ${Number(r.routeDistanceKm).toFixed(1)} km</span><strong>€${travel.toFixed(2)}</strong></div>${miscLine}<div class="subtotal"><span>Subtotal</span><strong>€${subtotal.toFixed(2)}</strong></div><div><span>VAT (${vatRate.toFixed(1)}%)</span><strong>€${vat.toFixed(2)}</strong></div><div class="grand-total"><span>TOTAL QUOTE</span><strong>€${total.toFixed(2)}</strong></div></div>`;
+  $("quoteSendRow").hidden=false;
+  $("quoteSendRow").dataset.total=String(total);
+  $("quoteSendRow").dataset.requestId=id;
   renderOffice();
 }
 function quoteEmailText(r,total,message){
@@ -203,16 +232,14 @@ function renderQuoteEmailPreview(r,total){
   box.innerHTML=`<div class="email-preview-head"><strong>THE TEE BOX</strong><span>QUOTE ${escapeHtml(r.reference)}</span></div><div class="email-preview-section"><b>QUOTE DETAILS</b><div><span>Customer</span><strong>${escapeHtml(r.name)}</strong></div><div><span>Date</span><strong>${escapeHtml(r.date)}</strong></div><div><span>Session</span><strong>${escapeHtml(r.period)} (${escapeHtml(r.duration)})</strong></div><div><span>Players</span><strong>${escapeHtml(r.people||"")}</strong></div><div><span>Eircode</span><strong>${escapeHtml(r.eircode||"")}</strong></div></div><div class="email-preview-section"><b>ITEMISED QUOTE</b><div><span>Service</span><strong>€${service.toFixed(2)}</strong></div><div><span>Travel (${Number(r.routeDistanceKm).toFixed(1)} km)</span><strong>€${travel.toFixed(2)}</strong></div>${miscPreview}<div><span>Subtotal</span><strong>€${subtotal.toFixed(2)}</strong></div><div><span>VAT (${vatRate.toFixed(1)}%)</span><strong>€${vat.toFixed(2)}</strong></div><div class="email-total"><span>Total</span><strong>€${Number(total).toFixed(2)}</strong></div></div><div class="email-preview-signoff">${escapeHtml(owner.name)} · ${escapeHtml(owner.phone)} · ${escapeHtml(owner.email)}</div>`;
 }
 function prepareQuoteEmail(){
-  const id=$("sendQuoteArea").dataset.requestId,total=Number($("sendQuoteArea").dataset.total||0),r=repairRequests().find(x=>x.id===id);if(!r)return;
+  const area=$("quoteSendRow"),id=area?.dataset.requestId,total=Number(area?.dataset.total||0),r=repairRequests().find(x=>x.id===id);
+  if(!r)return;
   if(!r.email){$("sendQuoteStatus").textContent="This customer has no email address.";return}
-  const message=$("quoteMessage").value.trim(),body=quoteEmailText(r,total,message),subject=`THE TEE BOX — Quote ${r.reference}`;
-  const owner=getOwner();
+  const body=quoteEmailText(r,total,"We would be delighted to provide THE TEE BOX for your event."),subject=`THE TEE BOX — Quote ${r.reference}`,owner=getOwner();
   const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  saveRequests(repairRequests().map(x=>x.id===id?{...x,quoteMessage:message,quotePreparedAt:new Date().toISOString(),status:"Quote Sent to customer",quoteSentAt:new Date().toISOString()}:x));
-  const popup=window.open(gmail,"_blank","noopener,noreferrer");
-  if(!popup)window.location.href=gmail;
-  $("sendQuoteStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;
-  renderOffice();
+  saveRequests(repairRequests().map(x=>x.id===id?{...x,quotePreparedAt:new Date().toISOString()}:x));
+  openNewTab(gmail);
+  $("sendQuoteStatus").textContent=`Gmail opened in a new tab for ${owner.email}. Review the quote and click Send in Gmail.`;
 }
 function syncJourneyForAcceptedQuote(r){
   const js=getJourneys().filter(j=>j.requestId!==r.id);
@@ -277,7 +304,7 @@ function bind(){
  $("quoteForm")?.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and quote period before requesting a quote.");return}const name=$("name").value.trim(),eircode=$("eircode").value.trim();if(!name||!eircode)return;const request={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),reference:createQuoteReference(),name,phone:$("phone").value.trim(),email:$("email").value.trim(),eircode,date:fmt(state.selectedDate),period:state.selectedSlot.time,duration:state.selectedSlot.duration,people:$("people").value==="6"?"6+":$("people").value,notes:$("notes").value.trim(),status:"New",createdAt:new Date().toISOString()};const rs=getRequests();rs.push(request);saveRequests(rs);$("confirmReference").textContent=request.reference;$("confirmName").textContent=name;$("confirmDate").textContent=fmt(state.selectedDate);$("confirmTime").textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;$("confirmPeople").textContent=request.people;$("confirmNotes").textContent=request.notes||"None";$("confirmationModal").hidden=false;document.body.style.overflow="hidden"});
  $("closeModal")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});$("modalDone")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});
  $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
- $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("calculateTravel")?.addEventListener("click",calculateTravel);$("prepareQuote")?.addEventListener("click",prepareQuote);$("calculateQuote")?.addEventListener("click",calculateQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
+ $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("calculateTravel")?.addEventListener("click",calculateTravel);$("prepareQuote")?.addEventListener("click",prepareQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
  $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();const entered=$("adminPin").value.trim();if(entered===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();loadPricing();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("resetAdminPinLocked")?.addEventListener("click",resetAdminPin);$("resetAdminPin")?.addEventListener("click",resetAdminPin);$("saveAdmin")?.addEventListener("click",saveAdmin);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
 }
 window.addEventListener("storage",()=>{if($("officeDashboard")&&!$("officeDashboard").hidden)renderOffice()});
