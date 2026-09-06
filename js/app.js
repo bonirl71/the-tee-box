@@ -22,6 +22,7 @@ function ensureTestQuoteRequests(){
   const SEED_VERSION="1.6.11";
   const existing=getRequests();
   const testIds=new Set(existing.map(r=>r.id));
+  const testRefs=new Set(existing.map(r=>r.reference));
   const tests=[
     {id:"test-quote-001",reference:"TB001-01",name:"John Murphy",phone:"087 123 4567",email:"john@example.com",eircode:"X91 N274",date:"Saturday, 12 September 2026",period:"Full Day",duration:"8 Hours",people:"4",notes:"Birthday round"},
     {id:"test-quote-002",reference:"TB002-01",name:"Sarah Kelly",phone:"086 555 0182",email:"sarah@example.com",eircode:"E45 DV25",date:"Sunday, 13 September 2026",period:"Morning",duration:"4 Hours",people:"6+",notes:"Friends group"},
@@ -30,7 +31,7 @@ function ensureTestQuoteRequests(){
   ];
   let changed=false;
   tests.forEach((t,i)=>{
-    if(!testIds.has(t.id)){
+    if(!testIds.has(t.id) && !testRefs.has(t.reference)){
       existing.push({...t,status:"New",createdAt:new Date(Date.now()-(tests.length-i)*60000).toISOString(),isTestQuote:true});
       changed=true;
     }
