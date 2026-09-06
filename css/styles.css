@@ -122,3 +122,26 @@
   .misc-quote-line{grid-template-columns:1fr 125px}
   .misc-description{max-width:100%}
 }
+
+/* REV 1.6.9 — keep the Quote Summary fully visible on desktop */
+@media (min-width: 1151px){
+  .quote-table-wrap{overflow-x:hidden}
+  .quote-table{width:100%;min-width:0;table-layout:fixed}
+  .quote-table th,.quote-table td{padding:8px 8px;font-size:.68rem}
+  .quote-table th{font-size:.60rem;letter-spacing:.07em}
+  .quote-table td small{font-size:.60rem}
+  .quote-table th:nth-child(1),.quote-table td:nth-child(1){width:52px}
+  .quote-table th:nth-child(2),.quote-table td:nth-child(2){width:88px}
+  .quote-table th:nth-child(3),.quote-table td:nth-child(3){width:118px}
+  .quote-table th:nth-child(4),.quote-table td:nth-child(4){width:150px}
+  .quote-table th:nth-child(5),.quote-table td:nth-child(5){width:118px}
+  .quote-table th:nth-child(6),.quote-table td:nth-child(6){width:86px}
+  .quote-table th:nth-child(7),.quote-table td:nth-child(7){width:52px}
+  .quote-table th:nth-child(8),.quote-table td:nth-child(8){width:108px}
+  .quote-table th:nth-child(9),.quote-table td:nth-child(9){width:70px}
+  .quote-table th:nth-child(10),.quote-table td:nth-child(10){width:78px}
+  .quote-table th:nth-child(11),.quote-table td:nth-child(11){width:190px}
+  .quote-table .row-actions{min-width:0;gap:4px}
+  .quote-table .row-actions .table-action{padding:5px 6px;font-size:.57rem}
+  .quote-table th:first-child,.quote-table td:first-child,.quote-table th:last-child,.quote-table td:last-child{position:static;box-shadow:none}
+}
