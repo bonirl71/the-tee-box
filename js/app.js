@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.3.0 */
+/* THE TEE BOX — REV 1.3.2 */
 (() => {
 "use strict";
 const state={viewDate:new Date(),selectedDate:null,selectedSlot:null};
@@ -42,6 +42,7 @@ function renderSlots(){
     const b=document.createElement("button");
     b.type="button";
     b.className="slot quote-period";
+    b.disabled=!state.selectedDate;
     if(state.selectedSlot && state.selectedSlot.time===s.time)b.classList.add("selected");
     b.innerHTML=`<strong>${s.time}</strong><span>${s.duration}</span>`;
     b.addEventListener("click",()=>selectSlot(s));
@@ -86,7 +87,15 @@ function closeModal(reset=false){
 }
 function openModal(){els.confirmationModal.hidden=false;document.body.style.overflow="hidden";els.modalDone.focus()}
 els.menuToggle.addEventListener("click",()=>{const open=els.mainNav.classList.toggle("open");els.menuToggle.setAttribute("aria-expanded",String(open))});
-els.mainNav.querySelectorAll("a").forEach(a=>a.addEventListener("click",closeMenu));
+els.mainNav.querySelectorAll("a").forEach(a=>a.addEventListener("click",e=>{
+  closeMenu();
+  if(a.getAttribute("href")==="#quote"){
+    resetBooking();
+  }
+}));
+document.querySelectorAll('a[href="#quote"]').forEach(a=>a.addEventListener("click",()=>{
+  resetBooking();
+}));
 els.prevMonth.addEventListener("click",()=>{state.viewDate=new Date(state.viewDate.getFullYear(),state.viewDate.getMonth()-1,1);renderCalendar()});
 els.nextMonth.addEventListener("click",()=>{state.viewDate=new Date(state.viewDate.getFullYear(),state.viewDate.getMonth()+1,1);renderCalendar()});
 els.people.addEventListener("change",()=>els.summaryPeople.textContent=els.people.value);
@@ -99,36 +108,61 @@ let pricing=JSON.parse(localStorage.getItem("teeBoxPricing")||"null")||{...DEFAU
 function saveRequests(list){localStorage.setItem("teeBoxQuoteRequests",JSON.stringify(list))}
 function getRequests(){return JSON.parse(localStorage.getItem("teeBoxQuoteRequests")||"[]")}
 function updatePricingInputs(){["fullDay","morning","afternoon","evening","travel0","travel20","travel50","travel100"].forEach(k=>{const el=$("price"+k.charAt(0).toUpperCase()+k.slice(1))||$(k);if(el)el.value=pricing[k]})}
-function priceKey(period){return period.toLowerCase().replace(/\s/g,"").includes("fullday")?"fullDay":period.toLowerCase()}
 function travelCost(km){if(km<=20)return pricing.travel0;if(km<=50)return pricing.travel20;if(km<=100)return pricing.travel50;return pricing.travel100}
-function renderOffice(){
- const reqs=getRequests().filter(r=>r.status!=="Completed");
- $("newQuoteCount").textContent=reqs.filter(r=>r.status==="New").length;
- $("pendingQuoteCount").textContent=reqs.filter(r=>r.status==="Pending").length;
- const box=$("quoteRequests");box.innerHTML="";
- if(!reqs.length){box.innerHTML='<p class="empty-state">No new or pending quote requests.</p>';return}
- reqs.forEach(r=>{const d=document.createElement("div");d.className="quote-request";d.innerHTML=`<div class="quote-request-head"><div><h4>${r.name}</h4><p>${r.date} · ${r.period} · ${r.people} players</p><p>${r.eircode} · ${r.phone} · ${r.email}</p></div><span class="status">${r.status}</span></div><p>${r.notes||"No notes"}</p><button class="button button-gold calculate-request" type="button">CALCULATE QUOTE</button>`;d.querySelector("button").addEventListener("click",()=>selectRequestForQuote(r));box.appendChild(d)})
-}
-function selectRequestForQuote(r){
- $("travelEircode").value=r.eircode;$("quoteCalculation").dataset.requestId=r.id;
- const session=pricing[priceKey(r.period)]||0;$("quoteCalculation").innerHTML=`<strong>${r.name} · ${r.period}</strong><span>Session price: €${session}</span><span>Travel: enter/calculate distance for ${r.eircode} to apply the travel band.</span>`;
- $("travel-planner")?.scrollIntoView?.({behavior:"smooth"});
-}
-function populatePricing(){
- const map={fullDay:"priceFullDay",morning:"priceMorning",afternoon:"priceAfternoon",evening:"priceEvening",travel0:"travel0",travel20:"travel20",travel50:"travel50",travel100:"travel100"};Object.entries(map).forEach(([k,id])=>$(id).value=pricing[k]);
-}
+function priceKey(period){return period==="Full Day"?"fullDay":period.toLowerCase()}
 function normaliseEircode(v){return v.trim().toUpperCase().replace(/\s+/g,"")}
 function demoDistance(e){return DEMO_DISTANCES[normaliseEircode(e)]??null}
 function showTravel(km){const cost=travelCost(km);$("travelResult").innerHTML=`<strong>${km} km estimated travel distance</strong><span>Travel charge from the configured band: €${cost}.</span>`;return {km,cost}}
-function calculateTravel(){
- const customer=normaliseEircode($("travelEircode").value),base=normaliseEircode($("baseEircode").value);let km=demoDistance(customer);
- if(km===null){$("travelResult").innerHTML='<strong>Demo lookup needed</strong><span>For this preview use E45DEMO, E21DEMO, V94DEMO or H91DEMO as the customer Eircode. The production version will geocode real Eircodes and use route distance.</span>';return}
- const result=showTravel(km);const rid=$("quoteCalculation").dataset.requestId;if(rid){const r=getRequests().find(x=>x.id===rid);if(r){const session=pricing[priceKey(r.period)]||0;$("quoteCalculation").innerHTML=`<strong>${r.name} · ${r.period}</strong><span>Session price: €${session}</span><span>Travel (${km} km): €${result.cost}</span><span><strong>Estimated quote total: €${session+result.cost}</strong></span>`}}
+async function calculateTravel(){
+ const customer=$("travelEircode").value.trim(), base=$("baseEircode").value.trim()||"E45 WC97";
+ if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically from the quote request.</span>';return null}
+ const demo=demoDistance(customer);
+ if(demo!==null)return showTravel(demo);
+ $("travelResult").innerHTML='<strong>Calculating route distance…</strong><span>Looking up the customer Eircode and calculating the driving route.</span>';
+ try{
+   const geocode=async e=>{
+     const url="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ie&q="+encodeURIComponent(e+", Ireland");
+     const r=await fetch(url,{headers:{Accept:"application/json"}});
+     if(!r.ok)throw new Error("Geocoding failed");
+     const data=await r.json();
+     if(!data.length)throw new Error("Eircode not found");
+     return {lat:+data[0].lat,lon:+data[0].lon};
+   };
+   const [a,b]=await Promise.all([geocode(base),geocode(customer)]);
+   const routeUrl=`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
+   const rr=await fetch(routeUrl);
+   if(!rr.ok)throw new Error("Routing failed");
+   const rd=await rr.json();
+   if(!rd.routes?.length)throw new Error("No route found");
+   const km=Math.round(rd.routes[0].distance/1000);
+   return showTravel(km);
+ }catch(err){
+   $("travelResult").innerHTML='<strong>Route distance could not be calculated</strong><span>The production version should perform this lookup in the secure backend. Check the Eircode and try again.</span>';
+   return null;
+ }
 }
 $("officeLoginForm").addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;populatePricing();renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});
 $("officeLogout").addEventListener("click",()=>{$("officeDashboard").hidden=true;$('officeLogin').hidden=false;$('officePassword').value=""});
 $("savePricing").addEventListener("click",()=>{pricing={fullDay:+$("priceFullDay").value||0,morning:+$("priceMorning").value||0,afternoon:+$("priceAfternoon").value||0,evening:+$("priceEvening").value||0,travel0:+$("travel0").value||0,travel20:+$("travel20").value||0,travel50:+$("travel50").value||0,travel100:+$("travel100").value||0};localStorage.setItem("teeBoxPricing",JSON.stringify(pricing));$("pricingSaved").textContent="Pricing saved on this device."});
-$("calculateTravel").addEventListener("click",calculateTravel);
+$("calculateTravel").addEventListener("click",()=>{
+ const customer=$("travelEircode").value.trim(),base=$("baseEircode").value.trim()||"E45 WC97";
+ if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically.</span>';return}
+ const url=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`;
+ window.open(url,"_blank","noopener");
+});
+$("calculateQuote").addEventListener("click",async()=>{
+ const rid=$("quoteCalculation").dataset.requestId;
+ if(!rid){$("quoteCalculation").innerHTML='<strong>No request selected.</strong><span>Select a quote request first.</span>';return}
+ const r=getRequests().find(x=>x.id===rid); if(!r)return;
+ const session=pricing[priceKey(r.period)]||0;
+ $("travelEircode").value=r.eircode;
+ const result=await calculateTravel();
+ if(!result){
+   $("quoteCalculation").innerHTML=`<strong>${r.name} · ${r.period}</strong><span>Session price: €${session}</span><span>Customer Eircode: ${r.eircode}</span><span>Travel cost could not be calculated.</span>`;
+   return;
+ }
+ $("quoteCalculation").innerHTML=`<strong>${r.name} · ${r.period}</strong><span>Session price: €${session}</span><span>Route distance: ${result.km} km</span><span>Travel charge: €${result.cost}</span><span><strong>Estimated quote total: €${session+result.cost}</strong></span>`;
+});
 
 renderCalendar();renderSlots();
 })();
