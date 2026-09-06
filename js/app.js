@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.1.1 */
+/* THE TEE BOX — REV 1.1.2 */
 (() => {
 "use strict";
 const state={viewDate:new Date(),selectedDate:null,selectedSlot:null};
@@ -22,14 +22,22 @@ function renderSlots(){els.slotGrid.innerHTML="";if(!state.selectedDate){els.slo
 function selectSlot(s){state.selectedSlot=s;els.summaryTime.textContent=s.time;els.durationDisplay.value=s.duration;renderSlots()}
 function closeMenu(){els.mainNav.classList.remove("open");els.menuToggle.setAttribute("aria-expanded","false")}
 function resetBooking(){
-  state.selectedDate=null;
-  state.selectedSlot=null;
-  els.bookingForm.reset();
-  els.summaryDate.textContent="Not selected";
-  els.summaryTime.textContent="Not selected";
-  els.summaryPeople.textContent="2";
-  els.durationDisplay.value="Select a time slot";
-  els.selectedDateLabel.textContent="Select a date";
+  state.selectedDate = null;
+  state.selectedSlot = null;
+
+  // Clear every customer-entered field explicitly.
+  document.getElementById("name").value = "";
+  document.getElementById("phone").value = "";
+  document.getElementById("email").value = "";
+  document.getElementById("notes").value = "";
+  els.people.value = "2";
+
+  els.summaryDate.textContent = "Not selected";
+  els.summaryTime.textContent = "Not selected";
+  els.summaryPeople.textContent = "2";
+  els.durationDisplay.value = "Select a time slot";
+  els.selectedDateLabel.textContent = "Select a date";
+
   renderCalendar();
   renderSlots();
 }
