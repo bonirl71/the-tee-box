@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.6.9 */
+/* THE TEE BOX — REV 1.6.10 */
 (() => {
 "use strict";
 const now=new Date();
@@ -97,22 +97,44 @@ function travelCost(km,p=getPricing()){if(!Number.isFinite(Number(km)))return nu
 function sortRequests(rs){return [...rs].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))}
 function formatReceived(v){const d=new Date(v);return Number.isNaN(d.getTime())?"Unknown":d.toLocaleDateString("en-IE",{day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"})}
 function statusClass(s){return String(s||"New").toLowerCase().replace(/\s+/g,"-")}
+function quoteValue(r){return Number(r.quoteAmount||0)||0}
+function activeQuoteValue(rs){return rs.filter(r=>!r.acceptedAt && ["Quote Sent to customer","Quote Sent"].includes(r.status) && r.status!=="Declined").reduce((sum,r)=>sum+quoteValue(r),0)}
+function acceptedQuoteValue(rs){return rs.filter(r=>r.acceptedAt).reduce((sum,r)=>sum+quoteValue(r),0)}
 let declineRequestId=null;
 function deleteQuote(id){const r=repairRequests().find(x=>x.id===id);if(!r)return;if(!confirm(`Delete quote ${r.reference} for ${r.name}? This cannot be undone.`))return;saveRequests(repairRequests().filter(x=>x.id!==id));saveJourneys(getJourneys().filter(j=>j.requestId!==id));if(state.selectedRequestId===id)state.selectedRequestId=null;renderOffice();}
 function openDeclineModal(id){const r=repairRequests().find(x=>x.id===id);if(!r)return;declineRequestId=id;$("declineCustomerSummary").textContent=`${r.reference} · ${r.name} · ${r.email||"No email address"}`;$("declineMessage").value=r.declineMessage||"";$("declineStatus").textContent="";$("declineModal").hidden=false;}
 function closeDeclineModal(){$("declineModal").hidden=true;declineRequestId=null;}
-function openDeclineEmail(){const r=repairRequests().find(x=>x.id===declineRequestId);if(!r)return;if(!r.email){$("declineStatus").textContent="This customer has no email address.";return;}const message=$("declineMessage").value.trim();if(!message){$("declineStatus").textContent="Please enter a short message explaining why the quote is being declined.";return;}const owner=getOwner();const subject=`THE TEE BOX — Update on quote ${r.reference}`;const body=`THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nDear ${r.name},\n\nThank you for your enquiry regarding THE TEE BOX.\n\nUnfortunately, we are unable to proceed with this request on this occasion.\n\nReason / message:\n${message}\n\nIf you would like to discuss an alternative date or arrangement, please get in touch.\n\nKind regards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;saveRequests(repairRequests().map(x=>x.id===r.id?{...x,declineMessage:message,status:"Declined",declinedAt:new Date().toISOString()}:x));saveJourneys(getJourneys().filter(j=>j.requestId!==r.id));const popup=window.open(gmail,"teeBoxDeclineEmail","noopener,noreferrer");$("declineStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;renderOffice();}
+function openDeclineEmail(){
+  const r=repairRequests().find(x=>x.id===declineRequestId);
+  if(!r)return;
+  if(!r.email){$("declineStatus").textContent="This customer has no email address.";return;}
+  const message=$("declineMessage").value.trim();
+  if(!message){$("declineStatus").textContent="Please enter a short message explaining why the quote is being declined.";return;}
+  const owner=getOwner();
+  const subject=`THE TEE BOX — Update on quote ${r.reference}`;
+  const body=`THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nDear ${r.name},\n\nThank you for your enquiry regarding THE TEE BOX.\n\nUnfortunately, we are unable to proceed with this request on this occasion.\n\nReason / message:\n${message}\n\nIf you would like to discuss an alternative date or arrangement, please get in touch.\n\nKind regards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;
+  const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  saveRequests(repairRequests().map(x=>x.id===r.id?{...x,declineMessage:message,status:"Declined",declinedAt:new Date().toISOString()}:x));
+  saveJourneys(getJourneys().filter(j=>j.requestId!==r.id));
+  openNewTab(gmail);
+  $("declineStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;
+  renderOffice();
+}
+
 function renderOffice(){
   const rs=sortRequests(repairRequests());
   $("newQuoteCount").textContent=rs.filter(r=>r.status==="New").length;
   $("pendingQuoteCount").textContent=rs.filter(r=>["Quote Sent to customer","Quote Sent","Accepted","Deposit Received"].includes(r.status)).length;
   $("journeyCount").textContent=rs.filter(r=>r.acceptedAt).length;
+  $("activeQuoteValue").textContent=`€${activeQuoteValue(rs).toFixed(2)}`;
+  $("acceptedQuoteValue").textContent=`€${acceptedQuoteValue(rs).toFixed(2)}`;
   const body=$("quoteRequests");
   if(!rs.length){
-    body.innerHTML='<tr><td colspan="11" class="empty-cell">No quote requests yet.</td></tr>';
+    body.innerHTML='<tr><td colspan="12" class="empty-cell">No quote requests yet.</td></tr>';
   }else{
     body.innerHTML=rs.map(r=>`<tr class="quote-row ${state.selectedRequestId===r.id?"selected-row":""}">
       <td class="accepted-cell"><input class="accept-quote" data-id="${escapeHtml(r.id)}" type="checkbox" aria-label="Mark ${escapeHtml(r.name)} as accepted" ${r.acceptedAt?"checked":""}></td>
+      <td class="deposit-cell"><input class="deposit-quote" data-id="${escapeHtml(r.id)}" type="checkbox" aria-label="Mark deposit received for ${escapeHtml(r.name)}" ${r.depositReceivedAt?"checked":""} ${r.acceptedAt?"":"disabled"}></td>
       <td><strong class="table-ref">${escapeHtml(r.reference)}</strong></td>
       <td>${escapeHtml(formatReceived(r.createdAt))}</td>
       <td><strong>${escapeHtml(r.name)}</strong><small>${escapeHtml(r.phone||"")} · ${escapeHtml(r.email||"")}</small></td>
@@ -130,11 +152,13 @@ function renderOffice(){
     </tr>`).join("");
     body.querySelectorAll(".select-request").forEach(b=>b.addEventListener("click",()=>selectRequestForQuote(b.dataset.id)));
     body.querySelectorAll(".accept-quote").forEach(cb=>cb.addEventListener("change",()=>toggleAccepted(cb.dataset.id,cb.checked)));
+    body.querySelectorAll(".deposit-quote").forEach(cb=>cb.addEventListener("change",()=>toggleDeposit(cb.dataset.id,cb.checked)));
     body.querySelectorAll(".delete-request").forEach(b=>b.addEventListener("click",()=>deleteQuote(b.dataset.id)));
     body.querySelectorAll(".decline-request").forEach(b=>b.addEventListener("click",()=>openDeclineModal(b.dataset.id)));
   }
   renderJourneys();
 }
+
 function selectRequestForQuote(id){
   const r=repairRequests().find(x=>x.id===id); if(!r)return;
   state.selectedRequestId=id;
@@ -239,12 +263,12 @@ function calculateQuote(){
 function quoteEmailText(r,total,message){
   const owner=getOwner(),service=Number(r.sessionPrice||0),travel=Number(r.travelCharge||0),misc=Number(r.miscAmount||0),subtotal=Number(r.quoteSubtotal??service+travel+misc),vatRate=Number(r.vatRate??23),vat=Number(r.vatAmount??subtotal*vatRate/100);
   const miscLine=misc>0?`Miscellaneous${r.miscDescription?` — ${r.miscDescription}`:""}: €${misc.toFixed(2)}\n`:"";
-  return `THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nQUOTE — ${r.reference}\n\nDear ${r.name},\n\nThank you for your enquiry. Please find your quote below.\n\nSESSION DETAILS\nDate: ${r.date}\nPeriod: ${r.period} (${r.duration})\nPlayers: ${r.people||""}\nLocation: ${r.eircode||""}\n\nQUOTE BREAKDOWN\nService — ${r.period}: €${service.toFixed(2)}\nTravel — ${Number(r.routeDistanceKm).toFixed(1)} km: €${travel.toFixed(2)}\n${miscLine}Subtotal: €${subtotal.toFixed(2)}\nVAT (${vatRate.toFixed(1)}%): €${vat.toFixed(2)}\nTOTAL: €${Number(total).toFixed(2)}\n\n${message||"We would be delighted to provide THE TEE BOX for your event."}\n\nThis quotation is subject to availability and is not confirmed until accepted and the required deposit has been received.\n\nRegards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;
+  return `THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nQUOTE — ${r.reference}\n\nDear ${r.name},\n\nThank you for your enquiry. Please find your quote below.\n\nSESSION DETAILS\nDate: ${r.date}\nPeriod: ${r.period} (${r.duration})\nPlayers: ${r.people||""}\nLocation: ${r.eircode||""}\n\nQUOTE BREAKDOWN\nService — ${r.period}: €${service.toFixed(2)}\nTravel — ${Number(r.routeDistanceKm).toFixed(1)} km: €${travel.toFixed(2)}\n${miscLine}Subtotal: €${subtotal.toFixed(2)}\nVAT (${vatRate.toFixed(1)}%): €${vat.toFixed(2)}\nTOTAL: €${Number(total).toFixed(2)}\n\n${message||"We would be delighted to provide THE TEE BOX for your event."}\n\nA 50% deposit of €${(Number(total)*0.5).toFixed(2)} is required no later than two days prior to the chosen date. The booking is only confirmed once the deposit has been received.\n\nThis quotation is subject to availability.\n\nRegards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;
 }
 function renderQuoteEmailPreview(r,total){
   const box=$("quoteEmailPreview");if(!box||!r)return;const owner=getOwner(),service=Number(r.sessionPrice||0),travel=Number(r.travelCharge||0),misc=Number(r.miscAmount||0),subtotal=Number(r.quoteSubtotal??service+travel+misc),vatRate=Number(r.vatRate??23),vat=Number(r.vatAmount??subtotal*vatRate/100);
   const miscPreview=misc>0?`<div><span>Miscellaneous${r.miscDescription?` — ${escapeHtml(r.miscDescription)}`:""}</span><strong>€${misc.toFixed(2)}</strong></div>`:"";
-  box.innerHTML=`<div class="email-preview-head"><strong>THE TEE BOX</strong><span>QUOTE ${escapeHtml(r.reference)}</span></div><div class="email-preview-section"><b>QUOTE DETAILS</b><div><span>Customer</span><strong>${escapeHtml(r.name)}</strong></div><div><span>Date</span><strong>${escapeHtml(r.date)}</strong></div><div><span>Session</span><strong>${escapeHtml(r.period)} (${escapeHtml(r.duration)})</strong></div><div><span>Players</span><strong>${escapeHtml(r.people||"")}</strong></div><div><span>Eircode</span><strong>${escapeHtml(r.eircode||"")}</strong></div></div><div class="email-preview-section"><b>ITEMISED QUOTE</b><div><span>Service</span><strong>€${service.toFixed(2)}</strong></div><div><span>Travel (${Number(r.routeDistanceKm).toFixed(1)} km)</span><strong>€${travel.toFixed(2)}</strong></div>${miscPreview}<div><span>Subtotal</span><strong>€${subtotal.toFixed(2)}</strong></div><div><span>VAT (${vatRate.toFixed(1)}%)</span><strong>€${vat.toFixed(2)}</strong></div><div class="email-total"><span>Total</span><strong>€${Number(total).toFixed(2)}</strong></div></div><div class="email-preview-signoff">${escapeHtml(owner.name)} · ${escapeHtml(owner.phone)} · ${escapeHtml(owner.email)}</div>`;
+  box.innerHTML=`<div class="email-preview-head"><strong>THE TEE BOX</strong><span>QUOTE ${escapeHtml(r.reference)}</span></div><div class="email-preview-section"><b>QUOTE DETAILS</b><div><span>Customer</span><strong>${escapeHtml(r.name)}</strong></div><div><span>Date</span><strong>${escapeHtml(r.date)}</strong></div><div><span>Session</span><strong>${escapeHtml(r.period)} (${escapeHtml(r.duration)})</strong></div><div><span>Players</span><strong>${escapeHtml(r.people||"")}</strong></div><div><span>Eircode</span><strong>${escapeHtml(r.eircode||"")}</strong></div></div><div class="email-preview-section"><b>ITEMISED QUOTE</b><div><span>Service</span><strong>€${service.toFixed(2)}</strong></div><div><span>Travel (${Number(r.routeDistanceKm).toFixed(1)} km)</span><strong>€${travel.toFixed(2)}</strong></div>${miscPreview}<div><span>Subtotal</span><strong>€${subtotal.toFixed(2)}</strong></div><div><span>VAT (${vatRate.toFixed(1)}%)</span><strong>€${vat.toFixed(2)}</strong></div><div class="email-total"><span>Total</span><strong>€${Number(total).toFixed(2)}</strong></div></div><div class="email-preview-section email-deposit-note"><b>DEPOSIT</b><p>A 50% deposit of €${(Number(total)*0.5).toFixed(2)} is required no later than two days prior to the chosen date. The booking is only confirmed once the deposit has been received.</p></div><div class="email-preview-signoff">${escapeHtml(owner.name)} · ${escapeHtml(owner.phone)} · ${escapeHtml(owner.email)}</div>`;
 }
 function prepareQuoteEmail(){
   const area=$("quoteSendRow"),id=area?.dataset.requestId,total=Number(area?.dataset.total||0),r=repairRequests().find(x=>x.id===id);
@@ -264,8 +288,7 @@ function openPreparedQuoteEmail(){
   if(!r.email){$("sendQuoteStatus").textContent="This customer has no email address.";return false}
   const body=quoteEmailText(r,total,"We would be delighted to provide THE TEE BOX for your event."),subject=`THE TEE BOX — Quote ${r.reference}`,owner=getOwner();
   const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  const popup=window.open(gmail,"teeBoxQuoteEmail","noopener,noreferrer");
-  if(!popup){$("sendQuoteStatus").textContent="Your browser blocked the Gmail window. Please allow pop-ups for THE TEE BOX.";return false}
+  openNewTab(gmail);
   $("sendQuoteStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;
   return true;
 }
@@ -299,9 +322,13 @@ function toggleAccepted(id,checked){
   }
   renderOffice();
 }
-function markAccepted(){if(state.selectedRequestId){toggleAccepted(state.selectedRequestId,true)}}
-function markDeposit(){const id=state.selectedRequestId;if(!id)return;const rs=repairRequests(),r=rs.find(x=>x.id===id);if(!r?.acceptedAt)return;saveRequests(rs.map(x=>x.id===id?{...x,depositReceivedAt:x.depositReceivedAt||new Date().toISOString(),status:"Accepted"}:x));renderOffice()}
-function addJourney(){if(state.selectedRequestId){toggleAccepted(state.selectedRequestId,true)}}
+function toggleDeposit(id,checked){
+  const rs=repairRequests(),r=rs.find(x=>x.id===id);
+  if(!r?.acceptedAt)return;
+  const updated=checked?{...r,depositReceivedAt:r.depositReceivedAt||new Date().toISOString(),status:"Deposit Received"}:{...r,depositReceivedAt:null,status:"Accepted"};
+  saveRequests(rs.map(x=>x.id===id?updated:x));
+  renderOffice();
+}
 function dateKeyFromText(text){const d=new Date(text);if(!Number.isNaN(d.getTime()))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;const m=String(text).match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);if(!m)return "";const d2=new Date(`${m[2]} ${m[1]}, ${m[3]}`);return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,"0")}-${String(d2.getDate()).padStart(2,"0")}`}
 function timeOnly(d){return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
 function renderJourneys(){
@@ -333,7 +360,7 @@ function bind(){
  $("quoteForm")?.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and quote period before requesting a quote.");return}const name=$("name").value.trim(),eircode=$("eircode").value.trim();if(!name||!eircode)return;const request={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),reference:createQuoteReference(),name,phone:$("phone").value.trim(),email:$("email").value.trim(),eircode,date:fmt(state.selectedDate),period:state.selectedSlot.time,duration:state.selectedSlot.duration,people:$("people").value==="6"?"6+":$("people").value,notes:$("notes").value.trim(),status:"New",createdAt:new Date().toISOString()};const rs=getRequests();rs.push(request);saveRequests(rs);$("confirmReference").textContent=request.reference;$("confirmName").textContent=name;$("confirmDate").textContent=fmt(state.selectedDate);$("confirmTime").textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;$("confirmPeople").textContent=request.people;$("confirmNotes").textContent=request.notes||"None";$("confirmationModal").hidden=false;document.body.style.overflow="hidden"});
  $("closeModal")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});$("modalDone")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});
  $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
- $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("prepareQuote")?.addEventListener("click",prepareQuote);$("sendQuote")?.addEventListener("click",openPreparedQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
+ $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("prepareQuote")?.addEventListener("click",prepareQuote);$("sendQuote")?.addEventListener("click",openPreparedQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);
  $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();const entered=$("adminPin").value.trim();if(entered===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();loadPricing();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("resetAdminPinLocked")?.addEventListener("click",resetAdminPin);$("resetAdminPin")?.addEventListener("click",resetAdminPin);$("saveAdmin")?.addEventListener("click",saveAdmin);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
 }
 window.addEventListener("storage",()=>{if($("officeDashboard")&&!$("officeDashboard").hidden)renderOffice()});
