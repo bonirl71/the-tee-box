@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Request a Quote | REV 1.6.9</title>
+<title>THE TEE BOX | Request a Quote | REV 1.6.10</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div class="revision-badge" aria-label="App revision">REV 1.6.9</div>
+<div class="revision-badge" aria-label="App revision">REV 1.6.10</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX Banner"></a>
@@ -134,16 +134,17 @@
   <div class="office-toolbar"><div><p class="eyebrow">OFFICE DASHBOARD</p><h3>Quote management</h3></div><button id="officeLogout" class="button" type="button">LOG OUT</button></div>
   <div class="office-stats">
     <div class="office-stat card"><span>NEW</span><strong id="newQuoteCount">0</strong><small>New quote requests</small></div>
-    <div class="office-stat card"><span>PENDING</span><strong id="pendingQuoteCount">0</strong><small>Quotes awaiting response</small></div>
-    <div class="office-stat card"><span>JOURNEYS</span><strong id="journeyCount">0</strong><small>Accepted & deposit received</small></div>
+    <div class="office-stat card"><span>ACTIVE QUOTES SENT</span><strong id="activeQuoteValue">€0.00</strong><small>Sent to customers · excludes accepted</small></div>
+    <div class="office-stat card"><span>ACCEPTED QUOTE VALUE</span><strong id="acceptedQuoteValue">€0.00</strong><small>Accepted quotes · no duplication</small></div>
+    <div class="office-stat card"><span>JOURNEYS</span><strong id="journeyCount">0</strong><small>Accepted customer journeys</small></div>
   </div>
 
   <div class="card office-panel quote-summary-panel">
     <div class="card-heading office-heading-row"><div><p class="eyebrow">QUOTE SUMMARY</p><h3>All quote requests</h3></div><div class="table-note">Oldest received first</div></div>
     <div class="quote-table-wrap">
       <table class="quote-table">
-        <thead><tr><th>Accepted</th><th>Reference</th><th>Received</th><th>Customer</th><th>Requested</th><th>Eircode</th><th>Players</th><th>Status</th><th>Quote</th><th>Distance</th><th>Action</th></tr></thead>
-        <tbody id="quoteRequests"><tr><td colspan="11" class="empty-cell">No quote requests yet.</td></tr></tbody>
+        <thead><tr><th>Accepted</th><th>Deposit</th><th>Reference</th><th>Received</th><th>Customer</th><th>Requested</th><th>Eircode</th><th>Players</th><th>Status</th><th>Quote</th><th>Distance</th><th>Action</th></tr></thead>
+        <tbody id="quoteRequests"><tr><td colspan="12" class="empty-cell">No quote requests yet.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -250,7 +251,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.9</strong></div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.10</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
