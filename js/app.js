@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.3.3 */
+/* THE TEE BOX — REV 1.3.4 */
 (() => {
 "use strict";
 const now=new Date(); const state={viewDate:new Date(now.getFullYear(),now.getMonth(),1),selectedDate:null,selectedSlot:null};
@@ -116,7 +116,15 @@ function createQuoteReference(){
  return `TTB-${stamp}-${suffix}`;
 }
 function renderOffice(){
- const requests=getRequests();
+ let requests=getRequests();
+ let changed=false;
+ requests=requests.map((r,i)=>{
+   if(!r.reference){r.reference=createQuoteReference();changed=true}
+   if(!r.createdAt){r.createdAt=new Date(Date.now()-(requests.length-i)*1000).toISOString();changed=true}
+   return r;
+ });
+ if(changed)saveRequests(requests);
+ requests.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
  const container=$("quoteRequests");
  $("newQuoteCount").textContent=requests.filter(r=>r.status==="New").length;
  $("pendingQuoteCount").textContent=requests.filter(r=>["Pending","Quote Sent"].includes(r.status)).length;
@@ -124,10 +132,21 @@ function renderOffice(){
  container.innerHTML="";
  requests.forEach(r=>{
    const card=document.createElement("div");card.className="quote-request";
-   card.innerHTML=`<div class="quote-request-head"><div><h4>${escapeHtml(r.name)}</h4><p class="quote-reference">${escapeHtml(r.reference||"NO REF")}</p></div><span class="status">${escapeHtml(r.status||"New")}</span></div><p>${escapeHtml(r.date)} · ${escapeHtml(r.period)} (${escapeHtml(r.duration)})</p><p>${escapeHtml(r.people)} players · ${escapeHtml(r.eircode)}</p><p>${escapeHtml(r.email)} · ${escapeHtml(r.phone)}</p><p>${escapeHtml(r.notes||"No notes")}</p><button class="button button-gold select-request" type="button" data-id="${escapeHtml(r.id)}">SELECT FOR QUOTE</button>`;
+   card.innerHTML=`
+    <div class="quote-request-head"><h4>${escapeHtml(r.name)}</h4><p class="quote-reference">${escapeHtml(r.reference)}</p></div>
+    <div><span class="quote-meta-label">Received</span><p>${escapeHtml(formatReceived(r.createdAt))}</p></div>
+    <div><span class="quote-meta-label">Requested</span><p>${escapeHtml(r.date)} · ${escapeHtml(r.period)} (${escapeHtml(r.duration)})</p></div>
+    <div><span class="quote-meta-label">Customer</span><p>${escapeHtml(r.eircode)} · ${escapeHtml(r.people)} players</p><p>${escapeHtml(r.email)}</p></div>
+    <div><span class="quote-meta-label">Status</span><p class="status">${escapeHtml(r.status||"New")}</p></div>
+    <button class="button button-gold select-request" type="button" data-id="${escapeHtml(r.id)}">SELECT FOR QUOTE</button>`;
    container.appendChild(card);
  });
  container.querySelectorAll(".select-request").forEach(b=>b.addEventListener("click",()=>selectRequestForQuote(b.dataset.id)));
+}
+function formatReceived(value){
+ const d=new Date(value);
+ if(Number.isNaN(d.getTime()))return "Unknown";
+ return d.toLocaleDateString("en-IE",{day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"});
 }
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function selectRequestForQuote(id){
