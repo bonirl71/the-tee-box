@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.6.8 */
+/* THE TEE BOX — REV 1.6.9 */
 (() => {
 "use strict";
 const now=new Date();
@@ -101,7 +101,7 @@ let declineRequestId=null;
 function deleteQuote(id){const r=repairRequests().find(x=>x.id===id);if(!r)return;if(!confirm(`Delete quote ${r.reference} for ${r.name}? This cannot be undone.`))return;saveRequests(repairRequests().filter(x=>x.id!==id));saveJourneys(getJourneys().filter(j=>j.requestId!==id));if(state.selectedRequestId===id)state.selectedRequestId=null;renderOffice();}
 function openDeclineModal(id){const r=repairRequests().find(x=>x.id===id);if(!r)return;declineRequestId=id;$("declineCustomerSummary").textContent=`${r.reference} · ${r.name} · ${r.email||"No email address"}`;$("declineMessage").value=r.declineMessage||"";$("declineStatus").textContent="";$("declineModal").hidden=false;}
 function closeDeclineModal(){$("declineModal").hidden=true;declineRequestId=null;}
-function openDeclineEmail(){const r=repairRequests().find(x=>x.id===declineRequestId);if(!r)return;if(!r.email){$("declineStatus").textContent="This customer has no email address.";return;}const message=$("declineMessage").value.trim();if(!message){$("declineStatus").textContent="Please enter a short message explaining why the quote is being declined.";return;}const owner=getOwner();const subject=`THE TEE BOX — Update on quote ${r.reference}`;const body=`THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nDear ${r.name},\n\nThank you for your enquiry regarding THE TEE BOX.\n\nUnfortunately, we are unable to proceed with this request on this occasion.\n\nReason / message:\n${message}\n\nIf you would like to discuss an alternative date or arrangement, please get in touch.\n\nKind regards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;saveRequests(repairRequests().map(x=>x.id===r.id?{...x,declineMessage:message,status:"Declined",declinedAt:new Date().toISOString()}:x));saveJourneys(getJourneys().filter(j=>j.requestId!==r.id));const popup=window.open(gmail,"_blank","noopener,noreferrer");if(!popup)window.location.href=gmail;$("declineStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;renderOffice();}
+function openDeclineEmail(){const r=repairRequests().find(x=>x.id===declineRequestId);if(!r)return;if(!r.email){$("declineStatus").textContent="This customer has no email address.";return;}const message=$("declineMessage").value.trim();if(!message){$("declineStatus").textContent="Please enter a short message explaining why the quote is being declined.";return;}const owner=getOwner();const subject=`THE TEE BOX — Update on quote ${r.reference}`;const body=`THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nDear ${r.name},\n\nThank you for your enquiry regarding THE TEE BOX.\n\nUnfortunately, we are unable to proceed with this request on this occasion.\n\nReason / message:\n${message}\n\nIf you would like to discuss an alternative date or arrangement, please get in touch.\n\nKind regards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;saveRequests(repairRequests().map(x=>x.id===r.id?{...x,declineMessage:message,status:"Declined",declinedAt:new Date().toISOString()}:x));saveJourneys(getJourneys().filter(j=>j.requestId!==r.id));const popup=window.open(gmail,"teeBoxDeclineEmail","noopener,noreferrer");$("declineStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;renderOffice();}
 function renderOffice(){
   const rs=sortRequests(repairRequests());
   $("newQuoteCount").textContent=rs.filter(r=>r.status==="New").length;
@@ -187,13 +187,7 @@ function openGoogleRoute(){
   if(status)status.textContent=`Google Maps route: ${base} → ${customer}`;
   return true;
 }
-function calculateTravel(e){
-  if(e?.preventDefault){
-    const r=state.selectedRequestId?repairRequests().find(x=>x.id===state.selectedRequestId):null;
-    if(!buildGoogleRouteUrl(r))e.preventDefault();
-  }
-  return openGoogleRoute();
-}
+function calculateTravel(){ return true; }
 
 function useManualDistance(){
   const id=state.selectedRequestId, km=Number($("manualDistanceKm")?.value);
@@ -264,6 +258,18 @@ function prepareQuoteEmail(){
   $("sendQuoteStatus").textContent=`Gmail draft ready for ${owner.email}. Click SEND QUOTE EMAIL to open it in a new tab.`;
   return true;
 }
+function openPreparedQuoteEmail(){
+  const area=$("quoteSendRow"),id=area?.dataset.requestId,total=Number(area?.dataset.total||0),r=repairRequests().find(x=>x.id===id);
+  if(!r)return false;
+  if(!r.email){$("sendQuoteStatus").textContent="This customer has no email address.";return false}
+  const body=quoteEmailText(r,total,"We would be delighted to provide THE TEE BOX for your event."),subject=`THE TEE BOX — Quote ${r.reference}`,owner=getOwner();
+  const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const popup=window.open(gmail,"teeBoxQuoteEmail","noopener,noreferrer");
+  if(!popup){$("sendQuoteStatus").textContent="Your browser blocked the Gmail window. Please allow pop-ups for THE TEE BOX.";return false}
+  $("sendQuoteStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;
+  return true;
+}
+
 function syncJourneyForAcceptedQuote(r){
   const js=getJourneys().filter(j=>j.requestId!==r.id);
   if(r.acceptedAt){
@@ -327,7 +333,7 @@ function bind(){
  $("quoteForm")?.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and quote period before requesting a quote.");return}const name=$("name").value.trim(),eircode=$("eircode").value.trim();if(!name||!eircode)return;const request={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),reference:createQuoteReference(),name,phone:$("phone").value.trim(),email:$("email").value.trim(),eircode,date:fmt(state.selectedDate),period:state.selectedSlot.time,duration:state.selectedSlot.duration,people:$("people").value==="6"?"6+":$("people").value,notes:$("notes").value.trim(),status:"New",createdAt:new Date().toISOString()};const rs=getRequests();rs.push(request);saveRequests(rs);$("confirmReference").textContent=request.reference;$("confirmName").textContent=name;$("confirmDate").textContent=fmt(state.selectedDate);$("confirmTime").textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;$("confirmPeople").textContent=request.people;$("confirmNotes").textContent=request.notes||"None";$("confirmationModal").hidden=false;document.body.style.overflow="hidden"});
  $("closeModal")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});$("modalDone")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});
  $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
- $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("calculateTravel")?.addEventListener("click",calculateTravel);$("prepareQuote")?.addEventListener("click",prepareQuote);$("sendQuote")?.addEventListener("click",e=>{prepareQuoteEmail();});$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
+ $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("prepareQuote")?.addEventListener("click",prepareQuote);$("sendQuote")?.addEventListener("click",openPreparedQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
  $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();const entered=$("adminPin").value.trim();if(entered===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();loadPricing();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("resetAdminPinLocked")?.addEventListener("click",resetAdminPin);$("resetAdminPin")?.addEventListener("click",resetAdminPin);$("saveAdmin")?.addEventListener("click",saveAdmin);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
 }
 window.addEventListener("storage",()=>{if($("officeDashboard")&&!$("officeDashboard").hidden)renderOffice()});
