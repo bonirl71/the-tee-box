@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.6.1 */
+/* THE TEE BOX — REV 1.6.3 */
 (() => {
 "use strict";
 const now=new Date();
@@ -25,7 +25,7 @@ function getPricing(){
       if(Number(saved.travel0)===5)saved.travel0=10;
       if(saved.vatRate==null)saved.vatRate=23;
       localStorage.setItem("teeBoxPricing",JSON.stringify({...DEFAULT_PRICING,...saved}));
-      localStorage.setItem("teeBoxPricingSchema","1.6.1");
+      localStorage.setItem("teeBoxPricingSchema","1.6.3");
     }
     return {...DEFAULT_PRICING,...saved};
   }catch{return {...DEFAULT_PRICING}}
@@ -78,13 +78,14 @@ function statusClass(s){return String(s||"New").toLowerCase().replace(/\s+/g,"-"
 function renderOffice(){
   const rs=sortRequests(repairRequests());
   $("newQuoteCount").textContent=rs.filter(r=>r.status==="New").length;
-  $("pendingQuoteCount").textContent=rs.filter(r=>["Quote Sent","Accepted","Deposit Received"].includes(r.status)).length;
-  $("journeyCount").textContent=rs.filter(r=>r.acceptedAt&&r.depositReceivedAt).length;
+  $("pendingQuoteCount").textContent=rs.filter(r=>["Quote Sent to customer","Quote Sent","Accepted","Deposit Received"].includes(r.status)).length;
+  $("journeyCount").textContent=rs.filter(r=>r.acceptedAt).length;
   const body=$("quoteRequests");
   if(!rs.length){
-    body.innerHTML='<tr><td colspan="10" class="empty-cell">No quote requests yet.</td></tr>';
+    body.innerHTML='<tr><td colspan="11" class="empty-cell">No quote requests yet.</td></tr>';
   }else{
     body.innerHTML=rs.map(r=>`<tr class="quote-row ${state.selectedRequestId===r.id?"selected-row":""}">
+      <td class="accepted-cell"><input class="accept-quote" data-id="${escapeHtml(r.id)}" type="checkbox" aria-label="Mark ${escapeHtml(r.name)} as accepted" ${r.acceptedAt?"checked":""}></td>
       <td><strong class="table-ref">${escapeHtml(r.reference)}</strong></td>
       <td>${escapeHtml(formatReceived(r.createdAt))}</td>
       <td><strong>${escapeHtml(r.name)}</strong><small>${escapeHtml(r.phone||"")} · ${escapeHtml(r.email||"")}</small></td>
@@ -97,6 +98,7 @@ function renderOffice(){
       <td><button class="table-action select-request" data-id="${escapeHtml(r.id)}" type="button">${state.selectedRequestId===r.id?"SELECTED":"SELECT"}</button></td>
     </tr>`).join("");
     body.querySelectorAll(".select-request").forEach(b=>b.addEventListener("click",()=>selectRequestForQuote(b.dataset.id)));
+    body.querySelectorAll(".accept-quote").forEach(cb=>cb.addEventListener("change",()=>toggleAccepted(cb.dataset.id,cb.checked)));
   }
   renderJourneys();
 }
@@ -104,50 +106,39 @@ function selectRequestForQuote(id){
   const r=repairRequests().find(x=>x.id===id); if(!r)return;
   state.selectedRequestId=id;
   state.lastRoute=r.routeDistanceKm!=null?{km:Number(r.routeDistanceKm),meters:Number(r.routeDistanceKm)*1000,durationMinutes:r.routeDurationMinutes!=null?Number(r.routeDurationMinutes):null,cost:travelCost(Number(r.routeDistanceKm)),source:r.routeSource||"manual"}:null;
-  $("travelEircode").value=r.eircode;
   $("manualDistanceKm").value=r.routeDistanceKm!=null?Number(r.routeDistanceKm):"";
-  $("baseEircode").value=getOwner().eircode;
+  if($("distanceMapStatus"))$("distanceMapStatus").textContent="";
   $("quoteSelectionBadge").textContent=`${r.reference} · ${r.name}`;
   $("quoteBuildArea").hidden=true;
   $("sendQuoteArea").hidden=true;
-  $("quoteStatusActions").hidden=false;
   $("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Reference: ${escapeHtml(r.reference)}</span><span>Customer Eircode: ${escapeHtml(r.eircode)}</span><span>Step 1: click CALCULATE DISTANCE, then enter the Google Maps driving distance.</span>`;
-  updateStatusButtons(r); renderOffice();
-  $("travel-planner").scrollIntoView({behavior:"smooth",block:"start"});
+  renderOffice();
+  $("quoteSelectionBadge")?.scrollIntoView({behavior:"smooth",block:"start"});
 }
-function updateStatusButtons(r){
-  $("markAccepted").disabled=!r||r.status==="Accepted"||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";
-  $("markDeposit").disabled=!r||!r.acceptedAt||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";
-  $("addJourney").disabled=!r||!r.acceptedAt||!r.depositReceivedAt;
-}
+function updateStatusButtons(r){}
 function openGoogleRoute(){
-  const customer=normaliseEircode($("travelEircode").value),base=normaliseEircode($("baseEircode").value||getOwner().eircode);
-  if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is loaded from the selected request.</span>';return false}
-  if(!base){$("travelResult").innerHTML='<strong>Business Eircode is missing.</strong><span>Update it in Admin.</span>';return false}
+  const r=state.selectedRequestId?repairRequests().find(x=>x.id===state.selectedRequestId):null;
+  const customer=normaliseEircode(r?.eircode),base=normaliseEircode(getOwner().eircode);
+  const status=$("distanceMapStatus");
+  if(!customer){if(status)status.textContent="Select a quote request first.";return false}
+  if(!base){if(status)status.textContent="Business Eircode is missing. Update it in Admin.";return false}
   const url=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`;
   const popup=window.open(url,"_blank","noopener,noreferrer");
-  if(!popup){
-    // Some browsers/preview containers block pop-ups. Fall back to the same Google Maps route in this tab.
-    window.location.href=url;
-    return true;
-  }
-  $("travelResult").innerHTML=`<strong>Google Maps route opened</strong><span>${escapeHtml(base)} → ${escapeHtml(customer)}</span><span>Read the driving distance in Google Maps, then enter it in Step 2 and click SAVE DISTANCE.</span>`;
+  if(!popup){window.location.href=url;return true}
+  if(status)status.textContent=`Google Maps opened: ${base} → ${customer}`;
   return true;
 }
 function calculateTravel(){ return openGoogleRoute(); }
-function showTravel(r){
-  $("travelResult").innerHTML=`<strong>${r.km.toFixed(1)} km driving distance</strong><span>Travel charge from the configured band: €${Number(r.cost).toFixed(2)}</span>${r.durationMinutes!=null?`<span>Estimated driving time: ${r.durationMinutes} minutes</span>`:""}`;
-}
 function useManualDistance(){
-  const id=state.selectedRequestId, customer=normaliseEircode($("travelEircode").value), km=Number($("manualDistanceKm")?.value);
-  if(!id||!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>Select a row in All Quote Requests.</span>';return null}
-  if(!Number.isFinite(km)||km<0){$("travelResult").innerHTML='<strong>Enter a valid driving distance.</strong><span>Use the driving distance in kilometres shown by Google Maps.</span>';return null}
-  const rounded=Math.round(km*10)/10, cost=travelCost(rounded), r={km:rounded,meters:rounded*1000,durationMinutes:null,cost,source:"manual"}; state.lastRoute=r;
-  saveRequests(repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:rounded,routeDurationMinutes:null,travelCharge:cost,routeSource:"manual"}:x));
-  showTravel(r);
-  $("travelLineLabel").textContent=`${rounded.toFixed(1)} km · configured distance band`;
+  const id=state.selectedRequestId, km=Number($("manualDistanceKm")?.value);
+  if(!id){$("quoteCalculation").innerHTML='<strong>Select a quote request first.</strong><span>Select a row in All Quote Requests.</span>';return null}
+  if(!Number.isFinite(km)||km<0){$("quoteCalculation").innerHTML='<strong>Enter a valid driving distance.</strong><span>Use the driving distance in kilometres shown by Google Maps.</span>';return null}
+  const rounded=Math.round(km*10)/10, cost=travelCost(rounded), updated=repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:rounded,routeDurationMinutes:null,travelCharge:cost,routeSource:"manual"}:x);
+  saveRequests(updated);
+  if($("distanceMapStatus"))$("distanceMapStatus").textContent=`Distance saved: ${rounded.toFixed(1)} km · travel band charge €${Number(cost).toFixed(2)}`;
+  $("quoteCalculation").innerHTML=`<strong>Driving distance saved</strong><span>${rounded.toFixed(1)} km · travel charge €${Number(cost).toFixed(2)}</span><span>Now click PREPARE QUOTE.</span>`;
   renderOffice();
-  return r;
+  return {km:rounded,cost,source:"manual"};
 }
 function prepareQuote(){
   const id=state.selectedRequestId;if(!id){$("quoteCalculation").innerHTML='<strong>Select a quote request first.</strong><span>Choose a row from All Quote Requests.</span>';return}
@@ -180,48 +171,79 @@ function prepareQuoteEmail(){
   const id=$("sendQuoteArea").dataset.requestId,total=Number($("sendQuoteArea").dataset.total||0),r=repairRequests().find(x=>x.id===id);if(!r)return;
   if(!r.email){$("sendQuoteStatus").textContent="This customer has no email address.";return}
   const message=$("quoteMessage").value.trim(),body=quoteEmailText(r,total,message),subject=`THE TEE BOX — Quote ${r.reference}`;
-  const mailto=`mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const owner=getOwner();
+  const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   saveRequests(repairRequests().map(x=>x.id===id?{...x,quoteMessage:message,quotePreparedAt:new Date().toISOString(),status:"Quote Sent to customer",quoteSentAt:new Date().toISOString()}:x));
-  window.location.href=mailto;
-  $("sendQuoteStatus").textContent="Quote email prepared for the customer. Send it from your email application to complete the workflow.";
+  const popup=window.open(gmail,"_blank","noopener,noreferrer");
+  if(!popup)window.location.href=gmail;
+  $("sendQuoteStatus").textContent=`Gmail opened for ${owner.email}. Review and click Send in Gmail.`;
   renderOffice();
 }
-function markAccepted(){const id=state.selectedRequestId;if(!id)return;saveRequests(repairRequests().map(r=>r.id===id?{...r,acceptedAt:r.acceptedAt||new Date().toISOString(),status:r.depositReceivedAt?"Deposit Received":"Accepted"}:r));renderOffice();const r=repairRequests().find(x=>x.id===id);updateStatusButtons(r)}
-function markDeposit(){const id=state.selectedRequestId;if(!id)return;const rs=repairRequests();const r=rs.find(x=>x.id===id);if(!r?.acceptedAt)return;saveRequests(rs.map(x=>x.id===id?{...x,depositReceivedAt:x.depositReceivedAt||new Date().toISOString(),status:"Deposit Received"}:x));renderOffice();updateStatusButtons(repairRequests().find(x=>x.id===id))}
-function defaultStart(period){return period==="Full Day"?"10:00":period==="Morning"?"10:00":period==="Afternoon"?"14:00":"18:00"}
-function addJourney(){const id=state.selectedRequestId,r=repairRequests().find(x=>x.id===id);if(!r||!r.acceptedAt||!r.depositReceivedAt){alert("The quote must be accepted and the deposit received before it can be added to the journey schedule.");return}if(!r.routeDistanceKm){alert("Calculate the route and quote first so the journey has a driving distance.");return}const start=prompt("Customer session start time",defaultStart(r.period));if(!start)return;const setup=Number(prompt("Setup / arrival buffer in minutes", "30"));if(!Number.isFinite(setup)||setup<0)return;const travel=r.routeDurationMinutes||0;const startDate=new Date(`${dateKeyFromText(r.date)}T${start}:00`);if(Number.isNaN(startDate.getTime())){alert("Could not read the requested date.");return}const arrive=new Date(startDate.getTime()-setup*60000);const depart=new Date(arrive.getTime()-travel*60000);const journey={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),requestId:r.id,reference:r.reference,name:r.name,phone:r.phone,email:r.email,eircode:r.eircode,date:r.date,period:r.period,duration:r.duration,startTime:start,departTime:timeOnly(depart),arriveTime:timeOnly(arrive),travelDurationMinutes:travel,setupMinutes:setup,distanceKm:r.routeDistanceKm,status:"Scheduled",createdAt:new Date().toISOString()};const js=getJourneys().filter(j=>j.requestId!==r.id);js.push(journey);saveJourneys(js);saveRequests(repairRequests().map(x=>x.id===id?{...x,status:"Scheduled"}:x));renderOffice();alert("Journey added to the owner schedule.")}
+function syncJourneyForAcceptedQuote(r){
+  const js=getJourneys().filter(j=>j.requestId!==r.id);
+  if(r.acceptedAt){
+    js.push({
+      id:crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`,
+      requestId:r.id,reference:r.reference,name:r.name,phone:r.phone,email:r.email,eircode:r.eircode,
+      date:r.date,period:r.period,duration:r.duration,distanceKm:r.routeDistanceKm??null,status:"Accepted",
+      createdAt:new Date().toISOString()
+    });
+  }
+  saveJourneys(js);
+}
+function toggleAccepted(id,checked){
+  const rs=repairRequests(), r=rs.find(x=>x.id===id);
+  if(!r)return;
+  if(checked){
+    const acceptedAt=r.acceptedAt||new Date().toISOString();
+    const updated={...r,acceptedAt,status:"Accepted"};
+    saveRequests(rs.map(x=>x.id===id?updated:x));
+    syncJourneyForAcceptedQuote(updated);
+    state.selectedRequestId=id;
+  }else{
+    const fallback=r.quoteSentAt?"Quote Sent to customer":"New";
+    const updated={...r,acceptedAt:null,status:fallback};
+    saveRequests(rs.map(x=>x.id===id?updated:x));
+    saveJourneys(getJourneys().filter(j=>j.requestId!==id));
+  }
+  renderOffice();
+}
+function markAccepted(){if(state.selectedRequestId){toggleAccepted(state.selectedRequestId,true)}}
+function markDeposit(){const id=state.selectedRequestId;if(!id)return;const rs=repairRequests(),r=rs.find(x=>x.id===id);if(!r?.acceptedAt)return;saveRequests(rs.map(x=>x.id===id?{...x,depositReceivedAt:x.depositReceivedAt||new Date().toISOString(),status:"Accepted"}:x));renderOffice()}
+function addJourney(){if(state.selectedRequestId){toggleAccepted(state.selectedRequestId,true)}}
 function dateKeyFromText(text){const d=new Date(text);if(!Number.isNaN(d.getTime()))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;const m=String(text).match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);if(!m)return "";const d2=new Date(`${m[2]} ${m[1]}, ${m[3]}`);return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,"0")}-${String(d2.getDate()).padStart(2,"0")}`}
 function timeOnly(d){return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
-function renderJourneys(){const body=$("journeyRows"),js=getJourneys().sort((a,b)=>new Date(a.date)-new Date(b.date)||String(a.startTime).localeCompare(String(b.startTime)));if(!js.length){body.innerHTML='<tr><td colspan="8" class="empty-cell">No confirmed journeys yet.</td></tr>';return}body.innerHTML=js.map(j=>`<tr><td><strong>${escapeHtml(j.date)}</strong></td><td><strong>${escapeHtml(j.name)}</strong><small>${escapeHtml(j.reference)}</small></td><td>${escapeHtml(j.eircode)}<small>${escapeHtml(j.distanceKm)} km</small></td><td>${escapeHtml(j.period)}<small>${escapeHtml(j.startTime)}</small></td><td>${escapeHtml(j.departTime)}</td><td>${escapeHtml(j.arriveTime)}</td><td><a class="table-link" href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getOwner().eircode)}&destination=${encodeURIComponent(j.eircode)}&travelmode=driving" target="_blank" rel="noopener">OPEN MAP</a></td><td><span class="status-pill scheduled">${escapeHtml(j.status)}</span></td></tr>`).join("")}
-function loadPricing(){const p=getPricing();const ids={fullDay:"priceFullDay",morning:"priceMorning",afternoon:"priceAfternoon",evening:"priceEvening",travel0:"travel0",travel20:"travel20",travel50:"travel50",travel100:"travel100",vatRate:"vatRate"};Object.entries(ids).forEach(([k,id])=>{if($(id))$(id).value=p[k]})}
-function savePricing(){const p={fullDay:+$("priceFullDay").value||0,morning:+$("priceMorning").value||0,afternoon:+$("priceAfternoon").value||0,evening:+$("priceEvening").value||0,travel0:+$("travel0").value||0,travel20:+$("travel20").value||0,travel50:+$("travel50").value||0,travel100:+$("travel100").value||0,vatRate:+$("vatRate")?.value||23};localStorage.setItem("teeBoxPricing",JSON.stringify(p));localStorage.setItem("teeBoxPricingSchema","1.6.1");$("pricingSaved").textContent="Pricing saved on this device.";renderOffice()}
-function resetAdminPin(){localStorage.removeItem("teeBoxAdminPin");$("adminPin").value="";$("adminPinMessage").innerHTML="Admin PIN reset. Use the default PIN <strong>2468</strong> to unlock."}
-function loadAdmin(){const o=getOwner();$("ownerName").value=o.name;$("ownerPhone").value=o.phone;$("ownerEmail").value=o.email;$("ownerEircode").value=o.eircode;$("routeApiEndpoint").value=localStorage.getItem("teeBoxRouteEndpoint")||""}
-function saveAdmin(){const o={name:$("ownerName").value.trim(),phone:$("ownerPhone").value.trim(),email:$("ownerEmail").value.trim(),eircode:$("ownerEircode").value.trim().toUpperCase()};saveOwner(o);localStorage.setItem("teeBoxRouteEndpoint",$("routeApiEndpoint").value.trim());$("baseEircode").value=o.eircode;$("adminSaved").textContent="Admin settings saved on this device."}
-
-async function testRouteService(){
-  const endpoint=$("routeApiEndpoint").value.trim();
-  const result=$("routeTestResult");
-  if(!endpoint){result.textContent="Enter the route service URL first.";return}
-  result.textContent="Testing route service…";
-  try{
-    const o=$("ownerEircode").value.trim()||getOwner().eircode;
-    const res=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({originEircode:o,destinationEircode:o})});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
-    if(Number(data.distanceMeters)!==0)throw new Error("The service responded, but did not return the expected same-location test result.");
-    result.textContent="Route service connected successfully.";
-  }catch(e){result.textContent=`Route service test failed: ${e.message||e}`;}
+function renderJourneys(){
+  const body=$("journeyRows"), filter=$("journeyDateFilter");
+  let js=getJourneys().filter(j=>j.status==="Accepted"||j.status==="Scheduled");
+  js.sort((a,b)=>dateKeyFromText(a.date).localeCompare(dateKeyFromText(b.date))||String(a.name).localeCompare(String(b.name)));
+  const dates=[...new Set(js.map(j=>dateKeyFromText(j.date)).filter(Boolean))];
+  if(filter){
+    const current=filter.value||"all";
+    filter.innerHTML='<option value="all">All dates</option>'+dates.map(d=>{const label=new Intl.DateTimeFormat("en-IE",{weekday:"short",day:"numeric",month:"short",year:"numeric"}).format(new Date(`${d}T00:00:00`));return `<option value="${d}">${label}</option>`}).join("");
+    filter.value=dates.includes(current)?current:"all";
+    js=filter.value==="all"?js:js.filter(j=>dateKeyFromText(j.date)===filter.value);
+  }
+  if(!js.length){body.innerHTML='<tr><td colspan="7" class="empty-cell">No accepted customer journeys for the selected date.</td></tr>';return}
+  body.innerHTML=js.map(j=>{
+    const owner=getOwner(),url=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(owner.eircode)}&destination=${encodeURIComponent(j.eircode)}&travelmode=driving`;
+    return `<tr><td><strong>${escapeHtml(j.date)}</strong></td><td><strong>${escapeHtml(j.name)}</strong><small>${escapeHtml(j.reference)}</small></td><td>${escapeHtml(j.eircode)}</td><td>${escapeHtml(j.period)}<small>${escapeHtml(j.duration)}</small></td><td>${j.distanceKm!=null?`${Number(j.distanceKm).toFixed(1)} km`:"Not entered"}</td><td><a class="table-link journey-route-button" href="${url}" target="_blank" rel="noopener">PLAN ROUTE TO CUSTOMER</a></td><td><span class="status-pill accepted">Accepted</span></td></tr>`;
+  }).join("");
 }
+function loadPricing(){const p=getPricing();const ids={fullDay:"priceFullDay",morning:"priceMorning",afternoon:"priceAfternoon",evening:"priceEvening",travel0:"travel0",travel20:"travel20",travel50:"travel50",travel100:"travel100",vatRate:"vatRate"};Object.entries(ids).forEach(([k,id])=>{if($(id))$(id).value=p[k]})}
+function savePricing(){const p={fullDay:+$("priceFullDay").value||0,morning:+$("priceMorning").value||0,afternoon:+$("priceAfternoon").value||0,evening:+$("priceEvening").value||0,travel0:+$("travel0").value||0,travel20:+$("travel20").value||0,travel50:+$("travel50").value||0,travel100:+$("travel100").value||0,vatRate:+$("vatRate")?.value||23};localStorage.setItem("teeBoxPricing",JSON.stringify(p));localStorage.setItem("teeBoxPricingSchema","1.6.3");$("pricingSaved").textContent="Pricing saved on this device.";renderOffice()}
+function resetAdminPin(){localStorage.removeItem("teeBoxAdminPin");$("adminPin").value="";$("adminPinMessage").innerHTML="Admin PIN reset. Use the default PIN <strong>2468</strong> to unlock."}
+function loadAdmin(){const o=getOwner();$("ownerName").value=o.name;$("ownerPhone").value=o.phone;$("ownerEmail").value=o.email;$("ownerEircode").value=o.eircode}
+function saveAdmin(){const o={name:$("ownerName").value.trim(),phone:$("ownerPhone").value.trim(),email:$("ownerEmail").value.trim(),eircode:$("ownerEircode").value.trim().toUpperCase()};saveOwner(o);$("adminSaved").textContent="Admin settings saved on this device.";renderOffice()}
+
 function bind(){
  $("menuToggle")?.addEventListener("click",()=>{const open=$("mainNav").classList.toggle("open");$("menuToggle").setAttribute("aria-expanded",String(open))});$("mainNav")?.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>$("mainNav").classList.remove("open")));
  $("prevMonth")?.addEventListener("click",()=>{state.viewDate=new Date(state.viewDate.getFullYear(),state.viewDate.getMonth()-1,1);renderCalendar()});$("nextMonth")?.addEventListener("click",()=>{state.viewDate=new Date(state.viewDate.getFullYear(),state.viewDate.getMonth()+1,1);renderCalendar()});$("people")?.addEventListener("change",()=>$("summaryPeople").textContent=$("people").value);
  $("quoteForm")?.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and quote period before requesting a quote.");return}const name=$("name").value.trim(),eircode=$("eircode").value.trim();if(!name||!eircode)return;const request={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),reference:createQuoteReference(),name,phone:$("phone").value.trim(),email:$("email").value.trim(),eircode,date:fmt(state.selectedDate),period:state.selectedSlot.time,duration:state.selectedSlot.duration,people:$("people").value==="6"?"6+":$("people").value,notes:$("notes").value.trim(),status:"New",createdAt:new Date().toISOString()};const rs=getRequests();rs.push(request);saveRequests(rs);$("confirmReference").textContent=request.reference;$("confirmName").textContent=name;$("confirmDate").textContent=fmt(state.selectedDate);$("confirmTime").textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;$("confirmPeople").textContent=request.people;$("confirmNotes").textContent=request.notes||"None";$("confirmationModal").hidden=false;document.body.style.overflow="hidden"});
  $("closeModal")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});$("modalDone")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});
- $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();$("baseEircode").value=getOwner().eircode;renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
+ $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
  $("savePricing")?.addEventListener("click",savePricing);$("calculateTravel")?.addEventListener("click",calculateTravel);$("prepareQuote")?.addEventListener("click",prepareQuote);$("calculateQuote")?.addEventListener("click",calculateQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
- $("planRoute")?.addEventListener("click",()=>{const customer=$("travelEircode").value.trim(),base=$("baseEircode").value.trim()||getOwner().eircode;if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically.</span>';return}window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`,"_blank","noopener")});
- $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();const entered=$("adminPin").value.trim();if(entered===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("resetAdminPinLocked")?.addEventListener("click",resetAdminPin);$("resetAdminPin")?.addEventListener("click",resetAdminPin);$("saveAdmin")?.addEventListener("click",saveAdmin);$("testRouteService")?.addEventListener("click",testRouteService);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
+ $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();const entered=$("adminPin").value.trim();if(entered===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();loadPricing();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("resetAdminPinLocked")?.addEventListener("click",resetAdminPin);$("resetAdminPin")?.addEventListener("click",resetAdminPin);$("saveAdmin")?.addEventListener("click",saveAdmin);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
 }
 window.addEventListener("storage",()=>{if($("officeDashboard")&&!$("officeDashboard").hidden)renderOffice()});
 window.addEventListener("pageshow",()=>{state.viewDate=new Date(new Date().getFullYear(),new Date().getMonth(),1);renderCalendar();renderSlots()});
