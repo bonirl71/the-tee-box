@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.1.0 */
+/* THE TEE BOX — REV 1.1.1 */
 (() => {
 "use strict";
 const state={viewDate:new Date(),selectedDate:null,selectedSlot:null};
@@ -21,7 +21,26 @@ function selectDate(d){state.selectedDate=new Date(d);state.selectedSlot=null;el
 function renderSlots(){els.slotGrid.innerHTML="";if(!state.selectedDate){els.slotGrid.innerHTML='<p class="empty-state">Choose an available date to see session times.</p>';return}SLOTS.forEach(s=>{const b=document.createElement("button");b.type="button";b.className="slot";if(state.selectedSlot&&state.selectedSlot.time===s.time)b.classList.add("selected");b.innerHTML=`<strong>${s.time}</strong><span>${s.duration}</span>`;b.addEventListener("click",()=>selectSlot(s));els.slotGrid.appendChild(b)})}
 function selectSlot(s){state.selectedSlot=s;els.summaryTime.textContent=s.time;els.durationDisplay.value=s.duration;renderSlots()}
 function closeMenu(){els.mainNav.classList.remove("open");els.menuToggle.setAttribute("aria-expanded","false")}
-function closeModal(){els.confirmationModal.hidden=true;document.body.style.overflow=""}
+function resetBooking(){
+  state.selectedDate=null;
+  state.selectedSlot=null;
+  els.bookingForm.reset();
+  els.summaryDate.textContent="Not selected";
+  els.summaryTime.textContent="Not selected";
+  els.summaryPeople.textContent="2";
+  els.durationDisplay.value="Select a time slot";
+  els.selectedDateLabel.textContent="Select a date";
+  renderCalendar();
+  renderSlots();
+}
+function closeModal(reset=false){
+  els.confirmationModal.hidden=true;
+  document.body.style.overflow="";
+  if(reset){
+    resetBooking();
+    document.getElementById("booking").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
 function openModal(){els.confirmationModal.hidden=false;document.body.style.overflow="hidden";els.modalDone.focus()}
 els.menuToggle.addEventListener("click",()=>{const open=els.mainNav.classList.toggle("open");els.menuToggle.setAttribute("aria-expanded",String(open))});
 els.mainNav.querySelectorAll("a").forEach(a=>a.addEventListener("click",closeMenu));
@@ -29,6 +48,6 @@ els.prevMonth.addEventListener("click",()=>{state.viewDate=new Date(state.viewDa
 els.nextMonth.addEventListener("click",()=>{state.viewDate=new Date(state.viewDate.getFullYear(),state.viewDate.getMonth()+1,1);renderCalendar()});
 els.people.addEventListener("change",()=>els.summaryPeople.textContent=els.people.value);
 els.bookingForm.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and time before requesting a booking.");return}const name=$("name").value.trim();if(!name)return;els.confirmName.textContent=name;els.confirmDate.textContent=fmt(state.selectedDate);els.confirmTime.textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;els.confirmPeople.textContent=els.people.value==="6"?"6+":els.people.value;openModal()});
-els.closeModal.addEventListener("click",closeModal);els.modalDone.addEventListener("click",closeModal);els.confirmationModal.addEventListener("click",e=>{if(e.target===els.confirmationModal)closeModal()});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!els.confirmationModal.hidden)closeModal()});
+els.closeModal.addEventListener("click",()=>closeModal(true));els.modalDone.addEventListener("click",()=>closeModal(true));els.confirmationModal.addEventListener("click",e=>{if(e.target===els.confirmationModal)closeModal(true)});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!els.confirmationModal.hidden)closeModal()});
 renderCalendar();renderSlots();
 })();
