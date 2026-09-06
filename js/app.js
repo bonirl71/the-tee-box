@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.6.5 */
+/* THE TEE BOX — REV 1.6.8 */
 (() => {
 "use strict";
 const now=new Date();
@@ -142,6 +142,7 @@ function selectRequestForQuote(id){
   $("manualDistanceKm").value=r.routeDistanceKm!=null?Number(r.routeDistanceKm):"";
   if($("distanceMapStatus"))$("distanceMapStatus").textContent="";
   $("quoteSelectionBadge").textContent=`${r.reference} · ${r.name}`;
+  updateRouteLink();
   $("quoteBuildArea").hidden=true;
   $("quoteSendRow").hidden=true;
   $("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Reference: ${escapeHtml(r.reference)}</span><span>Customer Eircode: ${escapeHtml(r.eircode)}</span><span>Step 1: click CALCULATE DISTANCE, then enter the Google Maps driving distance.</span>`;
@@ -152,6 +153,11 @@ function selectRequestForQuote(id){
   });
 }
 function updateStatusButtons(r){}
+function buildGoogleRouteUrl(r){
+  const customer=normaliseEircode(r?.eircode),base=normaliseEircode(getOwner().eircode);
+  if(!customer||!base)return "";
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`;
+}
 function openNewTab(url){
   const a=document.createElement("a");
   a.href=url;
@@ -163,18 +169,32 @@ function openNewTab(url){
   a.remove();
   return true;
 }
+function updateRouteLink(){
+  const a=$("calculateTravel"),r=state.selectedRequestId?repairRequests().find(x=>x.id===state.selectedRequestId):null;
+  if(!a)return;
+  const url=buildGoogleRouteUrl(r);
+  a.href=url||"#";
+  a.setAttribute("aria-disabled",url?"false":"true");
+  a.classList.toggle("is-disabled",!url);
+}
 function openGoogleRoute(){
   const r=state.selectedRequestId?repairRequests().find(x=>x.id===state.selectedRequestId):null;
   const customer=normaliseEircode(r?.eircode),base=normaliseEircode(getOwner().eircode);
   const status=$("distanceMapStatus");
   if(!customer){if(status)status.textContent="Select a quote request first.";return false}
   if(!base){if(status)status.textContent="Business Eircode is missing. Update it in Admin.";return false}
-  const url=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`;
-  openNewTab(url);
-  if(status)status.textContent=`Google Maps opened in a new tab: ${base} → ${customer}`;
+  updateRouteLink();
+  if(status)status.textContent=`Google Maps route: ${base} → ${customer}`;
   return true;
 }
-function calculateTravel(){ return openGoogleRoute(); }
+function calculateTravel(e){
+  if(e?.preventDefault){
+    const r=state.selectedRequestId?repairRequests().find(x=>x.id===state.selectedRequestId):null;
+    if(!buildGoogleRouteUrl(r))e.preventDefault();
+  }
+  return openGoogleRoute();
+}
+
 function useManualDistance(){
   const id=state.selectedRequestId, km=Number($("manualDistanceKm")?.value);
   if(!id){$("quoteCalculation").innerHTML='<strong>Select a quote request first.</strong><span>Select a row in All Quote Requests.</span>';return null}
@@ -197,6 +217,7 @@ function prepareQuote(){
     $("serviceAmount").value=service.toFixed(2);
     $("travelAmount").value=travel.toFixed(2);
     $("miscAmount").value=Number(r.miscAmount||0).toFixed(2);
+    $("miscDescription").value=r.miscDescription||"";
     $("quoteVatRate").value=Number(r.vatRate!=null?r.vatRate:(p.vatRate??23));
     $("serviceLineLabel").textContent=`${r.period} · ${r.duration}`;
     $("travelLineLabel").textContent=`${Number(r.routeDistanceKm).toFixed(1)} km · configured distance band`;
@@ -210,8 +231,8 @@ function calculateQuote(){
   const r=repairRequests().find(x=>x.id===id);
   if(!r)return;
   if(r.routeDistanceKm==null){$("quoteCalculation").innerHTML='<strong>Distance required.</strong><span>Open Google Maps, enter the driving distance and click SAVE DISTANCE first.</span>';return}
-  const service=Math.max(0,Number($("serviceAmount").value)||0),travel=Math.max(0,Number($("travelAmount").value)||0),misc=Math.max(0,Number($("miscAmount").value)||0),vatRate=Math.max(0,Number($("quoteVatRate").value)||0),subtotal=service+travel+misc,vat=subtotal*vatRate/100,total=subtotal+vat;
-  const updated=repairRequests().map(x=>x.id===id?{...x,sessionPrice:service,travelCharge:travel,miscAmount:misc,vatRate,quoteSubtotal:subtotal,vatAmount:vat,quoteAmount:total}:x);
+  const service=Math.max(0,Number($("serviceAmount").value)||0),travel=Math.max(0,Number($("travelAmount").value)||0),misc=Math.max(0,Number($("miscAmount").value)||0),miscDescription=($("miscDescription")?.value||"").trim(),vatRate=Math.max(0,Number($("quoteVatRate").value)||0),subtotal=service+travel+misc,vat=subtotal*vatRate/100,total=subtotal+vat;
+  const updated=repairRequests().map(x=>x.id===id?{...x,sessionPrice:service,travelCharge:travel,miscAmount:misc,miscDescription,vatRate,quoteSubtotal:subtotal,vatAmount:vat,quoteAmount:total}:x);
   saveRequests(updated);
   const saved=updated.find(x=>x.id===id);
   const miscLine=misc>0?`<div><span>Miscellaneous</span><strong>€${misc.toFixed(2)}</strong></div>`:"";
@@ -223,23 +244,25 @@ function calculateQuote(){
 }
 function quoteEmailText(r,total,message){
   const owner=getOwner(),service=Number(r.sessionPrice||0),travel=Number(r.travelCharge||0),misc=Number(r.miscAmount||0),subtotal=Number(r.quoteSubtotal??service+travel+misc),vatRate=Number(r.vatRate??23),vat=Number(r.vatAmount??subtotal*vatRate/100);
-  const miscLine=misc>0?`Miscellaneous: €${misc.toFixed(2)}\n`:"";
+  const miscLine=misc>0?`Miscellaneous${r.miscDescription?` — ${r.miscDescription}`:""}: €${misc.toFixed(2)}\n`:"";
   return `THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nQUOTE — ${r.reference}\n\nDear ${r.name},\n\nThank you for your enquiry. Please find your quote below.\n\nSESSION DETAILS\nDate: ${r.date}\nPeriod: ${r.period} (${r.duration})\nPlayers: ${r.people||""}\nLocation: ${r.eircode||""}\n\nQUOTE BREAKDOWN\nService — ${r.period}: €${service.toFixed(2)}\nTravel — ${Number(r.routeDistanceKm).toFixed(1)} km: €${travel.toFixed(2)}\n${miscLine}Subtotal: €${subtotal.toFixed(2)}\nVAT (${vatRate.toFixed(1)}%): €${vat.toFixed(2)}\nTOTAL: €${Number(total).toFixed(2)}\n\n${message||"We would be delighted to provide THE TEE BOX for your event."}\n\nThis quotation is subject to availability and is not confirmed until accepted and the required deposit has been received.\n\nRegards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;
 }
 function renderQuoteEmailPreview(r,total){
   const box=$("quoteEmailPreview");if(!box||!r)return;const owner=getOwner(),service=Number(r.sessionPrice||0),travel=Number(r.travelCharge||0),misc=Number(r.miscAmount||0),subtotal=Number(r.quoteSubtotal??service+travel+misc),vatRate=Number(r.vatRate??23),vat=Number(r.vatAmount??subtotal*vatRate/100);
-  const miscPreview=misc>0?`<div><span>Miscellaneous</span><strong>€${misc.toFixed(2)}</strong></div>`:"";
+  const miscPreview=misc>0?`<div><span>Miscellaneous${r.miscDescription?` — ${escapeHtml(r.miscDescription)}`:""}</span><strong>€${misc.toFixed(2)}</strong></div>`:"";
   box.innerHTML=`<div class="email-preview-head"><strong>THE TEE BOX</strong><span>QUOTE ${escapeHtml(r.reference)}</span></div><div class="email-preview-section"><b>QUOTE DETAILS</b><div><span>Customer</span><strong>${escapeHtml(r.name)}</strong></div><div><span>Date</span><strong>${escapeHtml(r.date)}</strong></div><div><span>Session</span><strong>${escapeHtml(r.period)} (${escapeHtml(r.duration)})</strong></div><div><span>Players</span><strong>${escapeHtml(r.people||"")}</strong></div><div><span>Eircode</span><strong>${escapeHtml(r.eircode||"")}</strong></div></div><div class="email-preview-section"><b>ITEMISED QUOTE</b><div><span>Service</span><strong>€${service.toFixed(2)}</strong></div><div><span>Travel (${Number(r.routeDistanceKm).toFixed(1)} km)</span><strong>€${travel.toFixed(2)}</strong></div>${miscPreview}<div><span>Subtotal</span><strong>€${subtotal.toFixed(2)}</strong></div><div><span>VAT (${vatRate.toFixed(1)}%)</span><strong>€${vat.toFixed(2)}</strong></div><div class="email-total"><span>Total</span><strong>€${Number(total).toFixed(2)}</strong></div></div><div class="email-preview-signoff">${escapeHtml(owner.name)} · ${escapeHtml(owner.phone)} · ${escapeHtml(owner.email)}</div>`;
 }
 function prepareQuoteEmail(){
   const area=$("quoteSendRow"),id=area?.dataset.requestId,total=Number(area?.dataset.total||0),r=repairRequests().find(x=>x.id===id);
-  if(!r)return;
-  if(!r.email){$("sendQuoteStatus").textContent="This customer has no email address.";return}
+  if(!r)return false;
+  if(!r.email){$("sendQuoteStatus").textContent="This customer has no email address.";return false}
   const body=quoteEmailText(r,total,"We would be delighted to provide THE TEE BOX for your event."),subject=`THE TEE BOX — Quote ${r.reference}`,owner=getOwner();
   const gmail=`https://mail.google.com/mail/?view=cm&fs=1&tf=1&authuser=${encodeURIComponent(owner.email)}&to=${encodeURIComponent(r.email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const link=$("sendQuote");
+  if(link){link.href=gmail;link.setAttribute("aria-disabled","false");}
   saveRequests(repairRequests().map(x=>x.id===id?{...x,quotePreparedAt:new Date().toISOString()}:x));
-  openNewTab(gmail);
-  $("sendQuoteStatus").textContent=`Gmail opened in a new tab for ${owner.email}. Review the quote and click Send in Gmail.`;
+  $("sendQuoteStatus").textContent=`Gmail draft ready for ${owner.email}. Click SEND QUOTE EMAIL to open it in a new tab.`;
+  return true;
 }
 function syncJourneyForAcceptedQuote(r){
   const js=getJourneys().filter(j=>j.requestId!==r.id);
@@ -296,7 +319,7 @@ function loadPricing(){const p=getPricing();const ids={fullDay:"priceFullDay",mo
 function savePricing(){const p={fullDay:+$("priceFullDay").value||0,morning:+$("priceMorning").value||0,afternoon:+$("priceAfternoon").value||0,evening:+$("priceEvening").value||0,travel0:+$("travel0").value||0,travel20:+$("travel20").value||0,travel50:+$("travel50").value||0,travel100:+$("travel100").value||0,vatRate:+$("vatRate")?.value||23};localStorage.setItem("teeBoxPricing",JSON.stringify(p));localStorage.setItem("teeBoxPricingSchema","1.6.3");$("pricingSaved").textContent="Pricing saved on this device.";renderOffice()}
 function resetAdminPin(){localStorage.removeItem("teeBoxAdminPin");$("adminPin").value="";$("adminPinMessage").innerHTML="Admin PIN reset. Use the default PIN <strong>2468</strong> to unlock."}
 function loadAdmin(){const o=getOwner();$("ownerName").value=o.name;$("ownerPhone").value=o.phone;$("ownerEmail").value=o.email;$("ownerEircode").value=o.eircode}
-function saveAdmin(){const o={name:$("ownerName").value.trim(),phone:$("ownerPhone").value.trim(),email:$("ownerEmail").value.trim(),eircode:$("ownerEircode").value.trim().toUpperCase()};saveOwner(o);$("adminSaved").textContent="Admin settings saved on this device.";renderOffice()}
+function saveAdmin(){const o={name:$("ownerName").value.trim(),phone:$("ownerPhone").value.trim(),email:$("ownerEmail").value.trim(),eircode:$("ownerEircode").value.trim().toUpperCase()};saveOwner(o);updateRouteLink();$("adminSaved").textContent="Admin settings saved on this device.";renderOffice()}
 
 function bind(){
  $("menuToggle")?.addEventListener("click",()=>{const open=$("mainNav").classList.toggle("open");$("menuToggle").setAttribute("aria-expanded",String(open))});$("mainNav")?.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>$("mainNav").classList.remove("open")));
@@ -304,10 +327,10 @@ function bind(){
  $("quoteForm")?.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and quote period before requesting a quote.");return}const name=$("name").value.trim(),eircode=$("eircode").value.trim();if(!name||!eircode)return;const request={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),reference:createQuoteReference(),name,phone:$("phone").value.trim(),email:$("email").value.trim(),eircode,date:fmt(state.selectedDate),period:state.selectedSlot.time,duration:state.selectedSlot.duration,people:$("people").value==="6"?"6+":$("people").value,notes:$("notes").value.trim(),status:"New",createdAt:new Date().toISOString()};const rs=getRequests();rs.push(request);saveRequests(rs);$("confirmReference").textContent=request.reference;$("confirmName").textContent=name;$("confirmDate").textContent=fmt(state.selectedDate);$("confirmTime").textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;$("confirmPeople").textContent=request.people;$("confirmNotes").textContent=request.notes||"None";$("confirmationModal").hidden=false;document.body.style.overflow="hidden"});
  $("closeModal")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});$("modalDone")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});
  $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
- $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("calculateTravel")?.addEventListener("click",calculateTravel);$("prepareQuote")?.addEventListener("click",prepareQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
+ $("savePricing")?.addEventListener("click",savePricing);$("closeDeclineModal")?.addEventListener("click",closeDeclineModal);$("cancelDecline")?.addEventListener("click",closeDeclineModal);$("openDeclineEmail")?.addEventListener("click",openDeclineEmail);$("calculateTravel")?.addEventListener("click",calculateTravel);$("prepareQuote")?.addEventListener("click",prepareQuote);$("sendQuote")?.addEventListener("click",e=>{prepareQuoteEmail();});$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
  $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();const entered=$("adminPin").value.trim();if(entered===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();loadPricing();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("resetAdminPinLocked")?.addEventListener("click",resetAdminPin);$("resetAdminPin")?.addEventListener("click",resetAdminPin);$("saveAdmin")?.addEventListener("click",saveAdmin);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
 }
 window.addEventListener("storage",()=>{if($("officeDashboard")&&!$("officeDashboard").hidden)renderOffice()});
 window.addEventListener("pageshow",()=>{state.viewDate=new Date(new Date().getFullYear(),new Date().getMonth(),1);renderCalendar();renderSlots()});
-ensureTestQuoteRequests();bind();renderCalendar();renderSlots();
+ensureTestQuoteRequests();bind();renderCalendar();renderSlots();updateRouteLink();
 })();
