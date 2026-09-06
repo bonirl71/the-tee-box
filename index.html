@@ -3,10 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Book a Session</title>
+<title>THE TEE BOX | Book a Session | REV 1.1.0</title>
 <link rel="stylesheet" href="css/styles.css">
+<style>
+.revision-badge{
+  position:fixed;
+  top:8px;
+  right:10px;
+  z-index:100;
+  padding:3px 7px;
+  border:1px solid rgba(199,164,91,.55);
+  border-radius:3px;
+  background:rgba(7,17,31,.9);
+  color:#c7a45b;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+@media(max-width:700px){
+  .revision-badge{top:76px;right:10px}
+}
+</style>
 </head>
 <body>
+<div class="revision-badge" aria-label="App revision">REV 1.1.0</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX"></a>
@@ -112,7 +132,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>REV 1.1.0</div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.1.0</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
