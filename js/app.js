@@ -1,9 +1,9 @@
-/* THE TEE BOX — REV 1.5.0 */
+/* THE TEE BOX — REV 1.5.2 */
 (() => {
 "use strict";
 const now=new Date();
 const state={viewDate:new Date(now.getFullYear(),now.getMonth(),1),selectedDate:null,selectedSlot:null,selectedRequestId:null,lastRoute:null};
-const DEFAULT_PRICING={fullDay:400,morning:250,afternoon:250,evening:250,travel0:0,travel20:25,travel50:50,travel100:100};
+const DEFAULT_PRICING={fullDay:400,morning:250,afternoon:250,evening:250,travel0:5,travel20:20,travel50:50,travel100:100};
 const DEFAULT_OWNER={name:"Brian O'Neill",phone:"087 9165960",email:"bonirl71@gmail.com",eircode:"E45 WC97"};
 const DEFAULT_ADMIN_PIN="2468";
 const DEFAULT_ROUTE_ENDPOINT="";
@@ -57,7 +57,7 @@ function selectDate(d){state.selectedDate=new Date(d);state.selectedSlot=null;if
 function renderSlots(){const grid=$("slotGrid");if(!grid)return;grid.innerHTML="";[{time:"Full Day",duration:"8 Hours"},{time:"Morning",duration:"4 Hours"},{time:"Afternoon",duration:"4 Hours"},{time:"Evening",duration:"4 Hours"}].forEach(s=>{const b=document.createElement("button");b.type="button";b.className="slot quote-period";b.disabled=!state.selectedDate;if(state.selectedSlot?.time===s.time)b.classList.add("selected");b.innerHTML=`<strong>${s.time}</strong><span>${s.duration}</span>`;b.addEventListener("click",()=>{state.selectedSlot=s;$("summaryTime").textContent=`${s.time} (${s.duration})`;$("durationDisplay").value=`${s.time} — ${s.duration}`;renderSlots()});grid.appendChild(b)})}
 function resetBooking(){state.selectedDate=null;state.selectedSlot=null;["name","phone","email","eircode","notes"].forEach(id=>{if($(id))$(id).value=""});if($("people"))$("people").value="2";if($("summaryDate"))$("summaryDate").textContent="Not selected";if($("summaryTime"))$("summaryTime").textContent="Not selected";if($("summaryPeople"))$("summaryPeople").textContent="2";if($("durationDisplay"))$("durationDisplay").value="Select a quote period";renderCalendar();renderSlots()}
 function priceKey(period){return period==="Full Day"?"fullDay":String(period||"").toLowerCase()}
-function travelCost(km,p=getPricing()){if(km<=20)return p.travel0;if(km<=50)return p.travel20;if(km<=100)return p.travel50;return p.travel100}
+function travelCost(km,p=getPricing()){if(!Number.isFinite(Number(km)))return null;if(km<=20)return Number(p.travel0)||0;if(km<=50)return Number(p.travel20)||0;if(km<=100)return Number(p.travel50)||0;return Number(p.travel100)||0}
 function sortRequests(rs){return [...rs].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))}
 function formatReceived(v){const d=new Date(v);return Number.isNaN(d.getTime())?"Unknown":d.toLocaleDateString("en-IE",{day:"2-digit",month:"short",year:"numeric"})+" "+d.toLocaleTimeString("en-IE",{hour:"2-digit",minute:"2-digit"})}
 function statusClass(s){return String(s||"New").toLowerCase().replace(/\s+/g,"-")}
@@ -86,7 +86,7 @@ function renderOffice(){
   }
   renderJourneys();
 }
-function selectRequestForQuote(id){const r=repairRequests().find(x=>x.id===id);if(!r)return;state.selectedRequestId=id;state.lastRoute=null;$("travelEircode").value=r.eircode;$("quoteSelectionBadge").textContent=`${r.reference} · ${r.name}`;$("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Quote reference: ${escapeHtml(r.reference)}</span><span>Session price: €${getPricing()[priceKey(r.period)]||0}</span><span>Customer Eircode: ${escapeHtml(r.eircode)}</span><span>Calculate the route before calculating the final quote.</span>`;$("sendQuoteArea").hidden=true;$("quoteStatusActions").hidden=false;updateStatusButtons(r);renderOffice();$("travel-planner").scrollIntoView({behavior:"smooth",block:"start"})}
+function selectRequestForQuote(id){const r=repairRequests().find(x=>x.id===id);if(!r)return;state.selectedRequestId=id;state.lastRoute=(r.routeDistanceKm!=null?{km:Number(r.routeDistanceKm),meters:Number(r.routeDistanceKm)*1000,durationMinutes:r.routeDurationMinutes!=null?Number(r.routeDurationMinutes):null,cost:travelCost(Number(r.routeDistanceKm)),source:r.routeSource||"saved"}:null);$("travelEircode").value=r.eircode;if($("manualDistanceKm"))$("manualDistanceKm").value=r.routeDistanceKm!=null?Number(r.routeDistanceKm):"";$("quoteSelectionBadge").textContent=`${r.reference} · ${r.name}`;$("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Quote reference: ${escapeHtml(r.reference)}</span><span>Session price: €${getPricing()[priceKey(r.period)]||0}</span><span>Customer Eircode: ${escapeHtml(r.eircode)}</span>${state.lastRoute?`<span>Saved driving distance: ${state.lastRoute.km.toFixed(1)} km · Travel charge: €${Number(state.lastRoute.cost).toFixed(0)}</span>`:`<span>Calculate the actual route before calculating the final quote.</span>`}`;$("sendQuoteArea").hidden=true;$("quoteStatusActions").hidden=false;updateStatusButtons(r);renderOffice();$("travel-planner").scrollIntoView({behavior:"smooth",block:"start"})}
 function updateStatusButtons(r){$("markAccepted").disabled=!r||r.status==="Accepted"||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";$("markDeposit").disabled=!r||!r.acceptedAt||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";$("addJourney").disabled=!r||!r.acceptedAt||!r.depositReceivedAt}
 async function calculateTravel(){
   const customer=normaliseEircode($("travelEircode").value),base=normaliseEircode($("baseEircode").value||getOwner().eircode);
@@ -109,7 +109,7 @@ async function calculateTravel(){
     const r={km,meters:Number(data.distanceMeters),durationMinutes:minutes,cost:travelCost(km),source:"route"};
     state.lastRoute=r;
     const id=state.selectedRequestId;
-    if(id){saveRequests(repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:km,routeDurationMinutes:minutes,travelCharge:r.cost}:x));}
+    if(id){saveRequests(repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:km,routeDurationMinutes:minutes,travelCharge:r.cost,routeSource:"route"}:x));}
     showTravel(r);
     renderOffice();
     return r;
@@ -120,7 +120,23 @@ async function calculateTravel(){
   }
 }
 function showTravel(r){
-  $("travelResult").innerHTML=`<strong>${r.km.toFixed(1)} km actual driving distance</strong><span>Travel charge from the configured band: €${Number(r.cost).toFixed(0)}</span>${r.durationMinutes!=null?`<span>Estimated driving time: ${r.durationMinutes} minutes</span>`:""}`;
+  const label=r.source==="manual"?"Manual driving distance":"Actual driving distance";
+  $("travelResult").innerHTML=`<strong>${r.km.toFixed(1)} km ${label.toLowerCase()}</strong><span>Travel charge from the configured band: €${Number(r.cost).toFixed(0)}</span>${r.durationMinutes!=null?`<span>Estimated driving time: ${r.durationMinutes} minutes</span>`:""}`;
+}
+function useManualDistance(){
+  const customer=normaliseEircode($("travelEircode").value);
+  const raw=$("manualDistanceKm")?.value;
+  const km=Number(raw);
+  if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically.</span>';return null}
+  if(!Number.isFinite(km)||km<0){$("travelResult").innerHTML='<strong>Enter a valid driving distance.</strong><span>Enter the road distance in kilometres, for example 25.</span>';return null}
+  const rounded=Math.round(km*10)/10;
+  const r={km:rounded,meters:rounded*1000,durationMinutes:null,cost:travelCost(rounded),source:"manual"};
+  state.lastRoute=r;
+  const id=state.selectedRequestId;
+  if(id){saveRequests(repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:rounded,routeDurationMinutes:null,travelCharge:r.cost,routeSource:"manual"}:x));}
+  showTravel(r);
+  renderOffice();
+  return r;
 }
 function calculateQuote(){
   const id=state.selectedRequestId;
@@ -231,7 +247,7 @@ function bind(){
  $("quoteForm")?.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and quote period before requesting a quote.");return}const name=$("name").value.trim(),eircode=$("eircode").value.trim();if(!name||!eircode)return;const request={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),reference:createQuoteReference(),name,phone:$("phone").value.trim(),email:$("email").value.trim(),eircode,date:fmt(state.selectedDate),period:state.selectedSlot.time,duration:state.selectedSlot.duration,people:$("people").value==="6"?"6+":$("people").value,notes:$("notes").value.trim(),status:"New",createdAt:new Date().toISOString()};const rs=getRequests();rs.push(request);saveRequests(rs);$("confirmReference").textContent=request.reference;$("confirmName").textContent=name;$("confirmDate").textContent=fmt(state.selectedDate);$("confirmTime").textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;$("confirmPeople").textContent=request.people;$("confirmNotes").textContent=request.notes||"None";$("confirmationModal").hidden=false;document.body.style.overflow="hidden"});
  $("closeModal")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});$("modalDone")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});
  $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();$("baseEircode").value=getOwner().eircode;renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
- $("savePricing")?.addEventListener("click",savePricing);$("calculateTravel")?.addEventListener("click",calculateTravel);$("calculateQuote")?.addEventListener("click",calculateQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
+ $("savePricing")?.addEventListener("click",savePricing);$("calculateTravel")?.addEventListener("click",calculateTravel);$("calculateQuote")?.addEventListener("click",calculateQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
  $("planRoute")?.addEventListener("click",()=>{const customer=$("travelEircode").value.trim(),base=$("baseEircode").value.trim()||getOwner().eircode;if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically.</span>';return}window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`,"_blank","noopener")});
  $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();if($("adminPin").value===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("saveAdmin")?.addEventListener("click",saveAdmin);$("testRouteService")?.addEventListener("click",testRouteService);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
 }
