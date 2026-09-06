@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.6.10 */
+/* THE TEE BOX — REV 1.6.11 */
 (() => {
 "use strict";
 const now=new Date();
@@ -16,6 +16,10 @@ function getRequests(){try{return JSON.parse(localStorage.getItem("teeBoxQuoteRe
 // Restore the four Office test quote requests used during development.
 // They are added once by stable test IDs, so they never duplicate on refresh.
 function ensureTestQuoteRequests(){
+  // Seed the four development/test quotes once for this app revision.
+  // Existing test quotes are preserved so acceptance, deposits and quote values
+  // remain available for testing. Missing test quotes are restored individually.
+  const SEED_VERSION="1.6.11";
   const existing=getRequests();
   const testIds=new Set(existing.map(r=>r.id));
   const tests=[
@@ -25,14 +29,14 @@ function ensureTestQuoteRequests(){
     {id:"test-quote-004",reference:"TB004-01",name:"Aoife Walsh",phone:"089 210 4455",email:"aoife@example.com",eircode:"E45 DV25",date:"Sunday, 20 September 2026",period:"Evening",duration:"4 Hours",people:"2",notes:"Practice session"}
   ];
   let changed=false;
-  for(let i=0;i<tests.length;i++){
-    const t=tests[i];
+  tests.forEach((t,i)=>{
     if(!testIds.has(t.id)){
       existing.push({...t,status:"New",createdAt:new Date(Date.now()-(tests.length-i)*60000).toISOString(),isTestQuote:true});
       changed=true;
     }
-  }
+  });
   if(changed)saveRequests(existing);
+  localStorage.setItem("teeBoxTestQuoteSeed",SEED_VERSION);
 }
 function saveRequests(v){localStorage.setItem("teeBoxQuoteRequests",JSON.stringify(v))}
 function getJourneys(){try{return JSON.parse(localStorage.getItem("teeBoxJourneys")||"[]")}catch{return[]}}
