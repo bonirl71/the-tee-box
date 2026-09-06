@@ -1,9 +1,9 @@
-/* THE TEE BOX — REV 1.5.2 */
+/* THE TEE BOX — REV 1.6.0 */
 (() => {
 "use strict";
 const now=new Date();
 const state={viewDate:new Date(now.getFullYear(),now.getMonth(),1),selectedDate:null,selectedSlot:null,selectedRequestId:null,lastRoute:null};
-const DEFAULT_PRICING={fullDay:400,morning:250,afternoon:250,evening:250,travel0:5,travel20:20,travel50:50,travel100:100};
+const DEFAULT_PRICING={fullDay:400,morning:250,afternoon:250,evening:250,travel0:5,travel20:20,travel50:50,travel100:100,vatRate:23};
 const DEFAULT_OWNER={name:"Brian O'Neill",phone:"087 9165960",email:"bonirl71@gmail.com",eircode:"E45 WC97"};
 const DEFAULT_ADMIN_PIN="2468";
 const DEFAULT_ROUTE_ENDPOINT="";
@@ -86,134 +86,85 @@ function renderOffice(){
   }
   renderJourneys();
 }
-function selectRequestForQuote(id){const r=repairRequests().find(x=>x.id===id);if(!r)return;state.selectedRequestId=id;state.lastRoute=(r.routeDistanceKm!=null?{km:Number(r.routeDistanceKm),meters:Number(r.routeDistanceKm)*1000,durationMinutes:r.routeDurationMinutes!=null?Number(r.routeDurationMinutes):null,cost:travelCost(Number(r.routeDistanceKm)),source:r.routeSource||"saved"}:null);$("travelEircode").value=r.eircode;if($("manualDistanceKm"))$("manualDistanceKm").value=r.routeDistanceKm!=null?Number(r.routeDistanceKm):"";$("quoteSelectionBadge").textContent=`${r.reference} · ${r.name}`;$("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Quote reference: ${escapeHtml(r.reference)}</span><span>Session price: €${getPricing()[priceKey(r.period)]||0}</span><span>Customer Eircode: ${escapeHtml(r.eircode)}</span>${state.lastRoute?`<span>Saved driving distance: ${state.lastRoute.km.toFixed(1)} km · Travel charge: €${Number(state.lastRoute.cost).toFixed(0)}</span>`:`<span>Calculate the actual route before calculating the final quote.</span>`}`;$("sendQuoteArea").hidden=true;$("quoteStatusActions").hidden=false;updateStatusButtons(r);renderOffice();$("travel-planner").scrollIntoView({behavior:"smooth",block:"start"})}
-function updateStatusButtons(r){$("markAccepted").disabled=!r||r.status==="Accepted"||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";$("markDeposit").disabled=!r||!r.acceptedAt||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";$("addJourney").disabled=!r||!r.acceptedAt||!r.depositReceivedAt}
-async function calculateTravel(){
-  const customer=normaliseEircode($("travelEircode").value),base=normaliseEircode($("baseEircode").value||getOwner().eircode);
-  if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically.</span>';return null}
-  if(!base){$("travelResult").innerHTML='<strong>Business Eircode is missing.</strong><span>Update it in Admin.</span>';return null}
-  if(customer===base){
-    const r={km:0,meters:0,durationMinutes:0,cost:travelCost(0),source:"same-location"};
-    state.lastRoute=r;showTravel(r);return r;
-  }
-  const endpoint=(localStorage.getItem("teeBoxRouteEndpoint")||DEFAULT_ROUTE_ENDPOINT).trim();
-  if(!endpoint){$("travelResult").innerHTML='<strong>Route service is not connected.</strong><span>Deploy the supplied backend route service, then add its URL in Admin. The app will not guess a distance.</span>';return null}
-  $("travelResult").innerHTML='<strong>Calculating actual driving route…</strong><span>Resolving both Eircodes and calculating the road distance.</span>';
-  try{
-    const res=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({originEircode:$("baseEircode").value.trim()||getOwner().eircode,destinationEircode:$("travelEircode").value.trim()})});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(data.error||`Route service returned ${res.status}`);
-    if(!Number.isFinite(Number(data.distanceMeters)))throw new Error(data.error||"No driving distance was returned");
-    const km=Math.round(Number(data.distanceMeters)/1000*10)/10;
-    const minutes=Number.isFinite(Number(data.durationSeconds))?Math.round(Number(data.durationSeconds)/60):null;
-    const r={km,meters:Number(data.distanceMeters),durationMinutes:minutes,cost:travelCost(km),source:"route"};
-    state.lastRoute=r;
-    const id=state.selectedRequestId;
-    if(id){saveRequests(repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:km,routeDurationMinutes:minutes,travelCharge:r.cost,routeSource:"route"}:x));}
-    showTravel(r);
-    renderOffice();
-    return r;
-  }catch(err){
-    state.lastRoute=null;
-    $("travelResult").innerHTML=`<strong>Route calculation failed.</strong><span>${escapeHtml(err.message||"The route service did not return a valid driving distance.")}</span><span>No travel charge has been applied.</span>`;
-    return null;
-  }
+function selectRequestForQuote(id){
+  const r=repairRequests().find(x=>x.id===id); if(!r)return;
+  state.selectedRequestId=id;
+  state.lastRoute=r.routeDistanceKm!=null?{km:Number(r.routeDistanceKm),meters:Number(r.routeDistanceKm)*1000,durationMinutes:r.routeDurationMinutes!=null?Number(r.routeDurationMinutes):null,cost:travelCost(Number(r.routeDistanceKm)),source:r.routeSource||"manual"}:null;
+  $("travelEircode").value=r.eircode;
+  $("manualDistanceKm").value=r.routeDistanceKm!=null?Number(r.routeDistanceKm):"";
+  $("baseEircode").value=getOwner().eircode;
+  $("quoteSelectionBadge").textContent=`${r.reference} · ${r.name}`;
+  $("quoteBuildArea").hidden=true;
+  $("sendQuoteArea").hidden=true;
+  $("quoteStatusActions").hidden=false;
+  $("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Reference: ${escapeHtml(r.reference)}</span><span>Customer Eircode: ${escapeHtml(r.eircode)}</span><span>Step 1: click CALCULATE DISTANCE, then enter the Google Maps driving distance.</span>`;
+  updateStatusButtons(r); renderOffice();
+  $("travel-planner").scrollIntoView({behavior:"smooth",block:"start"});
 }
+function updateStatusButtons(r){
+  $("markAccepted").disabled=!r||r.status==="Accepted"||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";
+  $("markDeposit").disabled=!r||!r.acceptedAt||r.status==="Deposit Received"||r.status==="Scheduled"||r.status==="Completed";
+  $("addJourney").disabled=!r||!r.acceptedAt||!r.depositReceivedAt;
+}
+function openGoogleRoute(){
+  const customer=normaliseEircode($("travelEircode").value),base=normaliseEircode($("baseEircode").value||getOwner().eircode);
+  if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is loaded from the selected request.</span>';return false}
+  if(!base){$("travelResult").innerHTML='<strong>Business Eircode is missing.</strong><span>Update it in Admin.</span>';return false}
+  const url=`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`;
+  window.open(url,"_blank","noopener");
+  $("travelResult").innerHTML=`<strong>Google Maps opened</strong><span>${escapeHtml(base)} → ${escapeHtml(customer)}</span><span>Take the driving distance shown by Google Maps and enter it in Step 2 above.</span>`;
+  return true;
+}
+function calculateTravel(){ return openGoogleRoute(); }
 function showTravel(r){
-  const label=r.source==="manual"?"Manual driving distance":"Actual driving distance";
-  $("travelResult").innerHTML=`<strong>${r.km.toFixed(1)} km ${label.toLowerCase()}</strong><span>Travel charge from the configured band: €${Number(r.cost).toFixed(0)}</span>${r.durationMinutes!=null?`<span>Estimated driving time: ${r.durationMinutes} minutes</span>`:""}`;
+  $("travelResult").innerHTML=`<strong>${r.km.toFixed(1)} km driving distance</strong><span>Travel charge from the configured band: €${Number(r.cost).toFixed(2)}</span>${r.durationMinutes!=null?`<span>Estimated driving time: ${r.durationMinutes} minutes</span>`:""}`;
 }
 function useManualDistance(){
-  const customer=normaliseEircode($("travelEircode").value);
-  const raw=$("manualDistanceKm")?.value;
-  const km=Number(raw);
-  if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically.</span>';return null}
-  if(!Number.isFinite(km)||km<0){$("travelResult").innerHTML='<strong>Enter a valid driving distance.</strong><span>Enter the road distance in kilometres, for example 25.</span>';return null}
-  const rounded=Math.round(km*10)/10;
-  const r={km:rounded,meters:rounded*1000,durationMinutes:null,cost:travelCost(rounded),source:"manual"};
-  state.lastRoute=r;
-  const id=state.selectedRequestId;
-  if(id){saveRequests(repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:rounded,routeDurationMinutes:null,travelCharge:r.cost,routeSource:"manual"}:x));}
+  const id=state.selectedRequestId, customer=normaliseEircode($("travelEircode").value), km=Number($("manualDistanceKm")?.value);
+  if(!id||!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>Select a row in All Quote Requests.</span>';return null}
+  if(!Number.isFinite(km)||km<0){$("travelResult").innerHTML='<strong>Enter a valid driving distance.</strong><span>Use the driving distance in kilometres shown by Google Maps.</span>';return null}
+  const rounded=Math.round(km*10)/10, cost=travelCost(rounded), r={km:rounded,meters:rounded*1000,durationMinutes:null,cost,source:"manual"}; state.lastRoute=r;
+  saveRequests(repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:rounded,routeDurationMinutes:null,travelCharge:cost,routeSource:"manual"}:x));
   showTravel(r);
+  $("travelLineLabel").textContent=`${rounded.toFixed(1)} km · configured distance band`;
   renderOffice();
   return r;
 }
+function prepareQuote(){
+  const id=state.selectedRequestId;if(!id){alert("Select a quote request first.");return}
+  const r=repairRequests().find(x=>x.id===id);if(!r)return;
+  if(r.routeDistanceKm==null){alert("Enter and save the driving distance before preparing the quote.");return}
+  const p=getPricing(),service=Number(p[priceKey(r.period)])||0,travel=Number(r.travelCharge!=null?r.travelCharge:travelCost(r.routeDistanceKm,p))||0;
+  $("serviceAmount").value=service.toFixed(2);$("travelAmount").value=travel.toFixed(2);$("miscAmount").value=Number(r.miscAmount||0).toFixed(2);$("vatRate").value=Number(r.vatRate!=null?r.vatRate:(p.vatRate??23));
+  $("serviceLineLabel").textContent=`${r.period} · ${r.duration}`;$("travelLineLabel").textContent=`${Number(r.routeDistanceKm).toFixed(1)} km · configured distance band`;
+  $("quoteBuildArea").hidden=false;$("quoteCalculation").innerHTML='<strong>Quote lines ready.</strong><span>Review the three amounts, add Miscellaneous if required, then click CALCULATE QUOTE.</span>';
+}
 function calculateQuote(){
-  const id=state.selectedRequestId;
-  if(!id){$("quoteCalculation").innerHTML='<strong>No request selected.</strong><span>Select a request from the quote table first.</span>';return}
-  const r=repairRequests().find(x=>x.id===id);
-  if(!r)return;
-  const session=getPricing()[priceKey(r.period)]||0;
-  if(!state.lastRoute){$("quoteCalculation").innerHTML='<strong>Calculate the actual route first.</strong><span>The quote will not use a guessed distance.</span>';return}
-  const total=session+state.lastRoute.cost;
-  const updated=repairRequests().map(x=>x.id===id?{...x,routeDistanceKm:state.lastRoute.km,routeDurationMinutes:state.lastRoute.durationMinutes,travelCharge:state.lastRoute.cost,sessionPrice:session,quoteAmount:total}:x);
-  saveRequests(updated);
-  const saved=updated.find(x=>x.id===id);
-  renderQuoteEmailPreview(saved,total);
-  $("quoteCalculation").innerHTML=`<strong>${escapeHtml(r.name)} · ${escapeHtml(r.period)}</strong><span>Quote reference: ${escapeHtml(r.reference)}</span><span>Session price: €${session}</span><span>Actual driving distance: ${state.lastRoute.km.toFixed(1)} km</span><span>Travel charge: €${state.lastRoute.cost}</span><span><strong>Estimated quote total: €${total}</strong></span>`;
-  $("sendQuoteArea").hidden=false;
-  $("sendQuoteArea").dataset.total=String(total);
-  $("sendQuoteArea").dataset.requestId=id;
+  const id=state.selectedRequestId;if(!id){$("quoteCalculation").innerHTML='<strong>No request selected.</strong><span>Select a request from the quote table first.</span>';return}
+  const r=repairRequests().find(x=>x.id===id);if(!r)return;
+  if(r.routeDistanceKm==null){$("quoteCalculation").innerHTML='<strong>Distance required.</strong><span>Complete Steps 1 and 2 before calculating the quote.</span>';return}
+  const service=Math.max(0,Number($("serviceAmount").value)||0),travel=Math.max(0,Number($("travelAmount").value)||0),misc=Math.max(0,Number($("miscAmount").value)||0),vatRate=Math.max(0,Number($("vatRate").value)||0),subtotal=service+travel+misc,vat=subtotal*vatRate/100,total=subtotal+vat;
+  const updated=repairRequests().map(x=>x.id===id?{...x,sessionPrice:service,travelCharge:travel,miscAmount:misc,vatRate,quoteSubtotal:subtotal,vatAmount:vat,quoteAmount:total}:x);saveRequests(updated);
+  const saved=updated.find(x=>x.id===id);renderQuoteEmailPreview(saved,total);$("sendQuoteArea").hidden=false;$("sendQuoteArea").dataset.total=String(total);$("sendQuoteArea").dataset.requestId=id;
+  $("quoteCalculation").innerHTML=`<div class="quote-itemized"><div><span>Service — ${escapeHtml(r.period)}</span><strong>€${service.toFixed(2)}</strong></div><div><span>Travel — ${Number(r.routeDistanceKm).toFixed(1)} km</span><strong>€${travel.toFixed(2)}</strong></div><div><span>Miscellaneous</span><strong>€${misc.toFixed(2)}</strong></div><div class="subtotal"><span>Subtotal</span><strong>€${subtotal.toFixed(2)}</strong></div><div><span>VAT (${vatRate.toFixed(1)}%)</span><strong>€${vat.toFixed(2)}</strong></div><div class="grand-total"><span>TOTAL QUOTE</span><strong>€${total.toFixed(2)}</strong></div></div>`;
   renderOffice();
 }
 function quoteEmailText(r,total,message){
-  const owner=getOwner();
-  const travel=Number(r.travelCharge||0);
-  const route=r.routeDistanceKm!=null?`${Number(r.routeDistanceKm).toFixed(1)} km driving distance${r.routeDurationMinutes!=null?` / approx. ${r.routeDurationMinutes} min`:""}`:"Route not calculated";
-  return `THE TEE BOX
-PREMIUM POP-UP GOLF SIMULATOR
-
-========================================
-QUOTE — ${r.reference}
-========================================
-
-CUSTOMER DETAILS
-Name:        ${r.name}
-Phone:       ${r.phone||""}
-Email:       ${r.email||""}
-Eircode:     ${r.eircode||""}
-Players:     ${r.people||""}
-
-SESSION DETAILS
-Date:        ${r.date}
-Period:      ${r.period}
-Duration:    ${r.duration}
-
-QUOTE BREAKDOWN
-Session:     €${Number(r.sessionPrice||0).toFixed(0)}
-Travel:      €${travel.toFixed(0)}
-Distance:    ${route}
-----------------------------------------
-TOTAL QUOTE: €${Number(total).toFixed(0)}
-----------------------------------------
-
-MESSAGE
-${message||"Thank you for your quote request. We would be delighted to provide THE TEE BOX for your event."}
-
-This quote is subject to availability and is not confirmed until accepted and the required deposit has been received.
-
-Regards,
-${owner.name}
-THE TEE BOX
-${owner.phone}
-${owner.email}`;
+  const owner=getOwner(),service=Number(r.sessionPrice||0),travel=Number(r.travelCharge||0),misc=Number(r.miscAmount||0),subtotal=Number(r.quoteSubtotal??service+travel+misc),vatRate=Number(r.vatRate??23),vat=Number(r.vatAmount??subtotal*vatRate/100);
+  return `THE TEE BOX\nPREMIUM POP-UP GOLF SIMULATOR\n\nQUOTE — ${r.reference}\n\nDear ${r.name},\n\nThank you for your enquiry. Please find your quote below.\n\nSESSION DETAILS\nDate: ${r.date}\nPeriod: ${r.period} (${r.duration})\nPlayers: ${r.people||""}\nLocation: ${r.eircode||""}\n\nQUOTE BREAKDOWN\nService — ${r.period}: €${service.toFixed(2)}\nTravel — ${Number(r.routeDistanceKm).toFixed(1)} km: €${travel.toFixed(2)}\nMiscellaneous: €${misc.toFixed(2)}\nSubtotal: €${subtotal.toFixed(2)}\nVAT (${vatRate.toFixed(1)}%): €${vat.toFixed(2)}\nTOTAL: €${Number(total).toFixed(2)}\n\n${message||"We would be delighted to provide THE TEE BOX for your event."}\n\nThis quotation is subject to availability and is not confirmed until accepted and the required deposit has been received.\n\nRegards,\n${owner.name}\nTHE TEE BOX\n${owner.phone}\n${owner.email}`;
 }
 function renderQuoteEmailPreview(r,total){
-  const box=$("quoteEmailPreview");if(!box||!r)return;
-  const owner=getOwner();
-  box.innerHTML=`<div class="email-preview-head"><strong>THE TEE BOX</strong><span>QUOTE ${escapeHtml(r.reference)}</span></div><div class="email-preview-section"><b>CUSTOMER DETAILS</b><div><span>Name</span><strong>${escapeHtml(r.name)}</strong></div><div><span>Phone</span><strong>${escapeHtml(r.phone||"")}</strong></div><div><span>Email</span><strong>${escapeHtml(r.email||"")}</strong></div><div><span>Eircode</span><strong>${escapeHtml(r.eircode||"")}</strong></div></div><div class="email-preview-section"><b>SESSION DETAILS</b><div><span>Date</span><strong>${escapeHtml(r.date)}</strong></div><div><span>Period</span><strong>${escapeHtml(r.period)} (${escapeHtml(r.duration)})</strong></div><div><span>Players</span><strong>${escapeHtml(r.people||"")}</strong></div></div><div class="email-preview-section"><b>QUOTE</b><div><span>Session</span><strong>€${Number(r.sessionPrice||0).toFixed(0)}</strong></div><div><span>Travel</span><strong>€${Number(r.travelCharge||0).toFixed(0)}</strong></div><div><span>Distance</span><strong>${r.routeDistanceKm!=null?Number(r.routeDistanceKm).toFixed(1)+" km":"—"}</strong></div><div class="email-total"><span>Total</span><strong>€${Number(total).toFixed(0)}</strong></div></div><div class="email-preview-signoff">${escapeHtml(owner.name)} · ${escapeHtml(owner.phone)} · ${escapeHtml(owner.email)}</div>`;
+  const box=$("quoteEmailPreview");if(!box||!r)return;const owner=getOwner(),service=Number(r.sessionPrice||0),travel=Number(r.travelCharge||0),misc=Number(r.miscAmount||0),subtotal=Number(r.quoteSubtotal??service+travel+misc),vatRate=Number(r.vatRate??23),vat=Number(r.vatAmount??subtotal*vatRate/100);
+  box.innerHTML=`<div class="email-preview-head"><strong>THE TEE BOX</strong><span>QUOTE ${escapeHtml(r.reference)}</span></div><div class="email-preview-section"><b>QUOTE DETAILS</b><div><span>Customer</span><strong>${escapeHtml(r.name)}</strong></div><div><span>Date</span><strong>${escapeHtml(r.date)}</strong></div><div><span>Session</span><strong>${escapeHtml(r.period)} (${escapeHtml(r.duration)})</strong></div><div><span>Players</span><strong>${escapeHtml(r.people||"")}</strong></div><div><span>Eircode</span><strong>${escapeHtml(r.eircode||"")}</strong></div></div><div class="email-preview-section"><b>ITEMISED QUOTE</b><div><span>Service</span><strong>€${service.toFixed(2)}</strong></div><div><span>Travel (${Number(r.routeDistanceKm).toFixed(1)} km)</span><strong>€${travel.toFixed(2)}</strong></div><div><span>Miscellaneous</span><strong>€${misc.toFixed(2)}</strong></div><div><span>Subtotal</span><strong>€${subtotal.toFixed(2)}</strong></div><div><span>VAT (${vatRate.toFixed(1)}%)</span><strong>€${vat.toFixed(2)}</strong></div><div class="email-total"><span>Total</span><strong>€${Number(total).toFixed(2)}</strong></div></div><div class="email-preview-signoff">${escapeHtml(owner.name)} · ${escapeHtml(owner.phone)} · ${escapeHtml(owner.email)}</div>`;
 }
 function prepareQuoteEmail(){
-  const id=$("sendQuoteArea").dataset.requestId,total=Number($("sendQuoteArea").dataset.total||0),r=repairRequests().find(x=>x.id===id);
-  if(!r)return;
+  const id=$("sendQuoteArea").dataset.requestId,total=Number($("sendQuoteArea").dataset.total||0),r=repairRequests().find(x=>x.id===id);if(!r)return;
   if(!r.email){$("sendQuoteStatus").textContent="This customer has no email address.";return}
-  const message=$("quoteMessage").value.trim();
-  const body=quoteEmailText(r,total,message);
-  const mailto=`mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent("THE TEE BOX — Quote "+r.reference)}&body=${encodeURIComponent(body)}`;
-  saveRequests(repairRequests().map(x=>x.id===id?{...x,status:"Quote Sent",quoteSentAt:new Date().toISOString(),quoteMessage:message}:x));
+  const message=$("quoteMessage").value.trim(),body=quoteEmailText(r,total,message),subject=`THE TEE BOX — Quote ${r.reference}`;
+  const mailto=`mailto:${encodeURIComponent(r.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  saveRequests(repairRequests().map(x=>x.id===id?{...x,quoteMessage:message,quotePreparedAt:new Date().toISOString()}:x));
   window.location.href=mailto;
-  $("sendQuoteStatus").textContent="Quote email prepared using the THE TEE BOX form-style template.";
-  renderOffice();
+  $("sendQuoteStatus").textContent="Quote email opened in your email application. Send it to the customer to complete the workflow.";
 }
 function markAccepted(){const id=state.selectedRequestId;if(!id)return;saveRequests(repairRequests().map(r=>r.id===id?{...r,acceptedAt:r.acceptedAt||new Date().toISOString(),status:r.depositReceivedAt?"Deposit Received":"Accepted"}:r));renderOffice();const r=repairRequests().find(x=>x.id===id);updateStatusButtons(r)}
 function markDeposit(){const id=state.selectedRequestId;if(!id)return;const rs=repairRequests();const r=rs.find(x=>x.id===id);if(!r?.acceptedAt)return;saveRequests(rs.map(x=>x.id===id?{...x,depositReceivedAt:x.depositReceivedAt||new Date().toISOString(),status:"Deposit Received"}:x));renderOffice();updateStatusButtons(repairRequests().find(x=>x.id===id))}
@@ -222,8 +173,8 @@ function addJourney(){const id=state.selectedRequestId,r=repairRequests().find(x
 function dateKeyFromText(text){const d=new Date(text);if(!Number.isNaN(d.getTime()))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;const m=String(text).match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);if(!m)return "";const d2=new Date(`${m[2]} ${m[1]}, ${m[3]}`);return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,"0")}-${String(d2.getDate()).padStart(2,"0")}`}
 function timeOnly(d){return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}
 function renderJourneys(){const body=$("journeyRows"),js=getJourneys().sort((a,b)=>new Date(a.date)-new Date(b.date)||String(a.startTime).localeCompare(String(b.startTime)));if(!js.length){body.innerHTML='<tr><td colspan="8" class="empty-cell">No confirmed journeys yet.</td></tr>';return}body.innerHTML=js.map(j=>`<tr><td><strong>${escapeHtml(j.date)}</strong></td><td><strong>${escapeHtml(j.name)}</strong><small>${escapeHtml(j.reference)}</small></td><td>${escapeHtml(j.eircode)}<small>${escapeHtml(j.distanceKm)} km</small></td><td>${escapeHtml(j.period)}<small>${escapeHtml(j.startTime)}</small></td><td>${escapeHtml(j.departTime)}</td><td>${escapeHtml(j.arriveTime)}</td><td><a class="table-link" href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(getOwner().eircode)}&destination=${encodeURIComponent(j.eircode)}&travelmode=driving" target="_blank" rel="noopener">OPEN MAP</a></td><td><span class="status-pill scheduled">${escapeHtml(j.status)}</span></td></tr>`).join("")}
-function loadPricing(){const p=getPricing();["fullDay","morning","afternoon","evening","travel0","travel20","travel50","travel100"].forEach(k=>{const id="price"+k.charAt(0).toUpperCase()+k.slice(1);if($(id))$(id).value=p[k]})}
-function savePricing(){const p={fullDay:+$("priceFullDay").value||0,morning:+$("priceMorning").value||0,afternoon:+$("priceAfternoon").value||0,evening:+$("priceEvening").value||0,travel0:+$("travel0").value||0,travel20:+$("travel20").value||0,travel50:+$("travel50").value||0,travel100:+$("travel100").value||0};localStorage.setItem("teeBoxPricing",JSON.stringify(p));$("pricingSaved").textContent="Pricing saved on this device.";renderOffice()}
+function loadPricing(){const p=getPricing();const ids={fullDay:"priceFullDay",morning:"priceMorning",afternoon:"priceAfternoon",evening:"priceEvening",travel0:"travel0",travel20:"travel20",travel50:"travel50",travel100:"travel100",vatRate:"vatRate"};Object.entries(ids).forEach(([k,id])=>{if($(id))$(id).value=p[k]})}
+function savePricing(){const p={fullDay:+$("priceFullDay").value||0,morning:+$("priceMorning").value||0,afternoon:+$("priceAfternoon").value||0,evening:+$("priceEvening").value||0,travel0:+$("travel0").value||0,travel20:+$("travel20").value||0,travel50:+$("travel50").value||0,travel100:+$("travel100").value||0,vatRate:+$("vatRate")?.value||23};localStorage.setItem("teeBoxPricing",JSON.stringify(p));$("pricingSaved").textContent="Pricing saved on this device.";renderOffice()}
 function loadAdmin(){const o=getOwner();$("ownerName").value=o.name;$("ownerPhone").value=o.phone;$("ownerEmail").value=o.email;$("ownerEircode").value=o.eircode;$("routeApiEndpoint").value=localStorage.getItem("teeBoxRouteEndpoint")||""}
 function saveAdmin(){const o={name:$("ownerName").value.trim(),phone:$("ownerPhone").value.trim(),email:$("ownerEmail").value.trim(),eircode:$("ownerEircode").value.trim().toUpperCase()};saveOwner(o);localStorage.setItem("teeBoxRouteEndpoint",$("routeApiEndpoint").value.trim());$("baseEircode").value=o.eircode;$("adminSaved").textContent="Admin settings saved on this device."}
 
@@ -247,7 +198,7 @@ function bind(){
  $("quoteForm")?.addEventListener("submit",e=>{e.preventDefault();if(!state.selectedDate||!state.selectedSlot){alert("Please select an available date and quote period before requesting a quote.");return}const name=$("name").value.trim(),eircode=$("eircode").value.trim();if(!name||!eircode)return;const request={id:crypto.randomUUID?crypto.randomUUID():Date.now().toString(),reference:createQuoteReference(),name,phone:$("phone").value.trim(),email:$("email").value.trim(),eircode,date:fmt(state.selectedDate),period:state.selectedSlot.time,duration:state.selectedSlot.duration,people:$("people").value==="6"?"6+":$("people").value,notes:$("notes").value.trim(),status:"New",createdAt:new Date().toISOString()};const rs=getRequests();rs.push(request);saveRequests(rs);$("confirmReference").textContent=request.reference;$("confirmName").textContent=name;$("confirmDate").textContent=fmt(state.selectedDate);$("confirmTime").textContent=`${state.selectedSlot.time} (${state.selectedSlot.duration})`;$("confirmPeople").textContent=request.people;$("confirmNotes").textContent=request.notes||"None";$("confirmationModal").hidden=false;document.body.style.overflow="hidden"});
  $("closeModal")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});$("modalDone")?.addEventListener("click",()=>{ $("confirmationModal").hidden=true;document.body.style.overflow="";resetBooking()});
  $("officeLoginForm")?.addEventListener("submit",e=>{e.preventDefault();if($("officeUsername").value==="office"&&$("officePassword").value==="teebox"){ $("officeLogin").hidden=true;$("officeDashboard").hidden=false;loadPricing();$("baseEircode").value=getOwner().eircode;renderOffice()}else $("officeLoginMessage").innerHTML='<span style="color:var(--gold)">Incorrect username or password.</span>'});$("officeLogout")?.addEventListener("click",()=>{$("officeDashboard").hidden=true;$("officeLogin").hidden=false;$("officePassword").value=""});
- $("savePricing")?.addEventListener("click",savePricing);$("calculateTravel")?.addEventListener("click",calculateTravel);$("calculateQuote")?.addEventListener("click",calculateQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
+ $("savePricing")?.addEventListener("click",savePricing);$("calculateTravel")?.addEventListener("click",calculateTravel);$("prepareQuote")?.addEventListener("click",prepareQuote);$("calculateQuote")?.addEventListener("click",calculateQuote);$("sendQuote")?.addEventListener("click",prepareQuoteEmail);$("useManualDistance")?.addEventListener("click",useManualDistance);$("markAccepted")?.addEventListener("click",markAccepted);$("markDeposit")?.addEventListener("click",markDeposit);$("addJourney")?.addEventListener("click",addJourney);
  $("planRoute")?.addEventListener("click",()=>{const customer=$("travelEircode").value.trim(),base=$("baseEircode").value.trim()||getOwner().eircode;if(!customer){$("travelResult").innerHTML='<strong>Select a quote request first.</strong><span>The customer Eircode is brought in automatically.</span>';return}window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(base)}&destination=${encodeURIComponent(customer)}&travelmode=driving`,"_blank","noopener")});
  $("adminPinForm")?.addEventListener("submit",e=>{e.preventDefault();if($("adminPin").value===getAdminPin()){$("adminLocked").hidden=true;$("adminSettings").hidden=false;loadAdmin();$("adminPinMessage").textContent="Admin unlocked."}else $("adminPinMessage").innerHTML='<span style="color:var(--gold)">Incorrect admin PIN.</span>'});$("saveAdmin")?.addEventListener("click",saveAdmin);$("testRouteService")?.addEventListener("click",testRouteService);$("lockAdmin")?.addEventListener("click",()=>{$("adminSettings").hidden=true;$("adminLocked").hidden=false});
 }
