@@ -145,3 +145,33 @@
   .quote-table .row-actions .table-action{padding:5px 6px;font-size:.57rem}
   .quote-table th:first-child,.quote-table td:first-child,.quote-table th:last-child,.quote-table td:last-child{position:static;box-shadow:none}
 }
+
+
+/* REV 1.6.10 — quote value cards, deposit tracking and no-scroll desktop summary */
+.office-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.deposit-cell{text-align:center;width:68px}.deposit-quote{width:18px;height:18px;accent-color:var(--gold);cursor:pointer}.deposit-quote:disabled{opacity:.35;cursor:not-allowed}
+.email-deposit-note p{margin:0;color:var(--cream);font-size:.78rem;line-height:1.5}
+@media(min-width:1151px){
+  .quote-table-wrap{overflow-x:hidden!important;width:100%!important}
+  .quote-table{width:100%!important;min-width:0!important;table-layout:fixed!important}
+  .quote-table th,.quote-table td{padding:7px 6px!important;font-size:.66rem!important;white-space:normal}
+  .quote-table th{font-size:.57rem!important}
+  .quote-table td small{font-size:.58rem!important;overflow-wrap:anywhere}
+  .quote-table th:nth-child(1),.quote-table td:nth-child(1){width:48px}
+  .quote-table th:nth-child(2),.quote-table td:nth-child(2){width:48px}
+  .quote-table th:nth-child(3),.quote-table td:nth-child(3){width:82px}
+  .quote-table th:nth-child(4),.quote-table td:nth-child(4){width:98px}
+  .quote-table th:nth-child(5),.quote-table td:nth-child(5){width:145px}
+  .quote-table th:nth-child(6),.quote-table td:nth-child(6){width:135px}
+  .quote-table th:nth-child(7),.quote-table td:nth-child(7){width:78px}
+  .quote-table th:nth-child(8),.quote-table td:nth-child(8){width:48px}
+  .quote-table th:nth-child(9),.quote-table td:nth-child(9){width:92px}
+  .quote-table th:nth-child(10),.quote-table td:nth-child(10){width:65px}
+  .quote-table th:nth-child(11),.quote-table td:nth-child(11){width:70px}
+  .quote-table th:nth-child(12),.quote-table td:nth-child(12){width:175px}
+  .quote-table .row-actions{min-width:0!important;gap:3px}
+  .quote-table .row-actions .table-action{padding:5px 5px!important;font-size:.54rem!important}
+  .quote-table th:first-child,.quote-table td:first-child,.quote-table th:last-child,.quote-table td:last-child{position:static!important;box-shadow:none!important}
+}
+@media(max-width:1000px){.office-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.office-stats{grid-template-columns:1fr}}
