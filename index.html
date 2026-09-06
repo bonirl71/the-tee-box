@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Request a Quote | REV 1.6.0</title>
+<title>THE TEE BOX | Request a Quote | REV 1.6.1</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div class="revision-badge" aria-label="App revision">REV 1.6.0</div>
+<div class="revision-badge" aria-label="App revision">REV 1.6.1</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX Banner"></a>
@@ -171,9 +171,22 @@
       <div class="card-heading"><p class="eyebrow">QUOTE WORKFLOW</p><h3>Selected quote</h3><p class="workflow-note">Work through the steps below in order.</p></div>
       <div id="quoteSelectionBadge" class="selection-badge">No request selected</div>
       <div class="workflow-steps">
-        <div class="workflow-step"><span class="step-number">1</span><div><b>Calculate distance</b><small>Open Google Maps for the selected customer's Eircode.</small></div><button id="calculateTravel" class="button" type="button">CALCULATE DISTANCE</button></div>
-        <div class="workflow-step"><span class="step-number">2</span><div><b>Enter driving distance</b><small>Take the driving distance from Google Maps and enter it below.</small></div><label class="distance-field"><span>Driving distance</span><input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="e.g. 25.4"><em>km</em></label><button id="useManualDistance" class="button" type="button">SAVE DISTANCE</button></div>
-        <div class="workflow-step"><span class="step-number">3</span><div><b>Prepare quote</b><small>Build the three editable quote lines.</small></div><button id="prepareQuote" class="button" type="button">PREPARE QUOTE</button></div>
+        <div class="workflow-step">
+          <div class="step-number">1</div>
+          <div class="workflow-step-content"><b>Open Google Maps</b><small>Use the business Eircode and the selected customer Eircode to view the driving route and distance.</small></div>
+          <button id="calculateTravel" class="button" type="button">CALCULATE DISTANCE</button>
+        </div>
+        <div class="workflow-step workflow-distance-step">
+          <div class="step-number">2</div>
+          <div class="workflow-step-content"><b>Enter driving distance</b><small>Enter the driving distance shown by Google Maps.</small></div>
+          <div class="distance-entry"><label for="manualDistanceKm">Driving distance</label><div class="distance-input"><input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="25.4"><span>km</span></div></div>
+          <button id="useManualDistance" class="button" type="button">SAVE DISTANCE</button>
+        </div>
+        <div class="workflow-step">
+          <div class="step-number">3</div>
+          <div class="workflow-step-content"><b>Prepare quote</b><small>Load the service price, calculated travel charge and a miscellaneous line.</small></div>
+          <button id="prepareQuote" class="button" type="button">PREPARE QUOTE</button>
+        </div>
       </div>
       <div id="quoteBuildArea" hidden>
         <div class="quote-lines">
@@ -181,7 +194,7 @@
           <div class="quote-line"><div><b>Travel</b><small id="travelLineLabel">Enter and save driving distance first</small></div><div class="money-field"><span>€</span><input id="travelAmount" type="number" min="0" step="0.01" readonly></div></div>
           <div class="quote-line"><div><b>Miscellaneous</b><small>Optional additional cost</small></div><div class="money-field"><span>€</span><input id="miscAmount" type="number" min="0" step="0.01" value="0"></div></div>
         </div>
-        <div class="quote-calc-controls"><label>VAT rate<input id="vatRate" type="number" min="0" max="100" step="0.1" value="23"></label><button id="calculateQuote" class="button button-gold" type="button">CALCULATE QUOTE</button></div>
+        <div class="quote-calc-controls"><label>VAT rate<input id="quoteVatRate" type="number" min="0" max="100" step="0.1" value="23"></label><button id="calculateQuote" class="button button-gold" type="button">CALCULATE QUOTE</button></div>
       </div>
       <div id="quoteCalculation" class="quote-result-card"><strong>Select a request above.</strong><span>The selected customer and Eircode will flow through the quote steps.</span></div>
       <div id="sendQuoteArea" class="send-quote-area" hidden>
@@ -204,7 +217,6 @@
     <div class="travel-grid">
       <label>Customer Eircode<input id="travelEircode" type="text" placeholder="Select a quote request" readonly></label>
       <label>THE TEE BOX Eircode<input id="baseEircode" type="text" value="E45 WC97" placeholder="E45 WC97"></label>
-      <label>Manual driving distance (km)<input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="Enter road distance"></label>
       <div class="travel-action"><button id="planRoute" class="button" type="button">PLAN ROUTE TO CUSTOMER</button></div>
     </div>
     <div id="travelResult" class="travel-result"><strong>Select a quote request.</strong><span>Select a quote above. The quote workflow opens Google Maps, then lets you enter the driving distance manually.</span></div>
@@ -223,8 +235,8 @@
   <div class="card office-panel admin-panel">
     <div class="card-heading"><p class="eyebrow">ADMIN</p><h3>Owner settings</h3></div>
     <div id="adminLocked">
-      <form id="adminPinForm" class="inline-form"><label>Admin PIN<input id="adminPin" type="password" inputmode="numeric" maxlength="8" required></label><button class="button button-gold" type="submit">UNLOCK ADMIN</button></form>
-      <p id="adminPinMessage" class="form-note">Admin settings are PIN protected. Preview PIN: <strong>2468</strong>.</p>
+      <form id="adminPinForm" class="inline-form"><label>Admin PIN<input id="adminPin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" required></label><button class="button button-gold" type="submit">UNLOCK ADMIN</button><button id="resetAdminPinLocked" class="button" type="button">RESET PIN</button></form>
+      <p id="adminPinMessage" class="form-note">Admin settings are PIN protected. Default PIN: <strong>2468</strong>. If you previously changed it and cannot remember it, use RESET PIN below.</p>
     </div>
     <div id="adminSettings" hidden>
       <div class="form-grid admin-grid">
@@ -234,7 +246,7 @@
         <label>Business Eircode<input id="ownerEircode" type="text"></label>
         <label class="full">Route Service Endpoint<input id="routeApiEndpoint" type="url" placeholder="https://your-backend.example.com/route"></label>
       </div>
-      <div class="admin-actions"><button id="saveAdmin" class="button button-gold" type="button">SAVE ADMIN SETTINGS</button><button id="testRouteService" class="button" type="button">TEST ROUTE SERVICE</button><button id="lockAdmin" class="button" type="button">LOCK ADMIN</button></div><p id="routeTestResult" class="form-note"></p>
+      <div class="admin-actions"><button id="saveAdmin" class="button button-gold" type="button">SAVE ADMIN SETTINGS</button><button id="resetAdminPin" class="button" type="button">RESET PIN TO 2468</button><button id="testRouteService" class="button" type="button">TEST ROUTE SERVICE</button><button id="lockAdmin" class="button" type="button">LOCK ADMIN</button></div><p id="routeTestResult" class="form-note"></p>
       <p id="adminSaved" class="form-note"></p>
       <p class="form-note">The route endpoint must be a secure backend that accepts the origin and customer Eircodes and returns actual driving distance and duration. The supplied Cloudflare Worker is configured for Google Geocoding + Google Routes. The supplied backend starter is in <strong>backend/cloudflare-worker.js</strong>.</p>
     </div>
@@ -252,7 +264,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.0</strong></div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.1</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
