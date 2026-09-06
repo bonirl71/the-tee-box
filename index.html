@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Request a Quote | REV 1.6.6</title>
+<title>THE TEE BOX | Request a Quote | REV 1.6.7</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div class="revision-badge" aria-label="App revision">REV 1.6.6</div>
+<div class="revision-badge" aria-label="App revision">REV 1.6.7</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX Banner"></a>
@@ -154,34 +154,31 @@
       <div class="workflow-steps">
         <div class="workflow-step">
           <div class="step-number">1</div>
-          <div class="workflow-step-content"><b>Calculate driving distance</b><small>Open Google Maps for an Eircode-to-Eircode driving route. Read the driving distance and enter it in Step 2.</small></div>
+          <div class="workflow-step-content"><b>Calculate driving distance</b><small>Open Google Maps in a new tab for THE TEE BOX Eircode to the customer's Eircode. Read the driving distance and enter it below.</small></div>
           <div class="workflow-action-stack"><button id="calculateTravel" class="button" type="button">CALCULATE DISTANCE</button><small id="distanceMapStatus" class="workflow-status"></small></div>
         </div>
         <div class="workflow-step workflow-distance-step">
           <div class="step-number">2</div>
-          <div class="workflow-step-content"><b>Enter driving distance</b><small>Enter the driving distance shown by Google Maps. The saved distance determines the travel charge.</small></div>
-          <div class="distance-entry"><label for="manualDistanceKm">Driving distance (km)</label><div class="distance-input"><input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="25.4" aria-label="Driving distance in kilometres"><span>km</span></div></div>
+          <div class="workflow-step-content"><b>Enter driving distance</b><small>Enter the driving distance shown by Google Maps. This determines the travel charge from your saved distance bands.</small></div>
+          <div class="distance-entry"><label for="manualDistanceKm">Driving distance</label><div class="distance-input"><input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="25.4" aria-label="Driving distance in kilometres"><span>km</span></div></div>
           <button id="useManualDistance" class="button" type="button">SAVE DISTANCE</button>
         </div>
         <div class="workflow-step">
           <div class="step-number">3</div>
-          <div class="workflow-step-content"><b>Prepare quote</b><small>Load the service price, calculated travel charge and a miscellaneous line.</small></div>
-          <button id="prepareQuote" class="button" type="button">PREPARE QUOTE</button>
+          <div class="workflow-step-content"><b>Prepare quote</b><small>Build the service, travel and optional miscellaneous charges, then calculate the VAT and total.</small></div>
+          <button id="prepareQuote" class="button button-gold" type="button">PREPARE QUOTE</button>
         </div>
       </div>
       <div id="quoteBuildArea" hidden>
         <div class="quote-lines">
           <div class="quote-line"><div><b>Service</b><small id="serviceLineLabel">—</small></div><div class="money-field"><span>€</span><input id="serviceAmount" type="number" min="0" step="0.01"></div></div>
           <div class="quote-line"><div><b>Travel</b><small id="travelLineLabel">Enter and save driving distance first</small></div><div class="money-field"><span>€</span><input id="travelAmount" type="number" min="0" step="0.01" readonly></div></div>
-          <div class="quote-line"><div><b>Miscellaneous</b><small>Optional additional cost</small></div><div class="money-field"><span>€</span><input id="miscAmount" type="number" min="0" step="0.01" value="0"></div></div>
+          <div class="quote-line"><div><b>Miscellaneous</b><small>Optional additional cost — leave at €0 if none</small></div><div class="money-field"><span>€</span><input id="miscAmount" type="number" min="0" step="0.01" value="0"></div></div>
         </div>
-        <div class="quote-calc-controls"><label>VAT rate<input id="quoteVatRate" type="number" min="0" max="100" step="0.1" value="23"></label><button id="calculateQuote" class="button button-gold" type="button">CALCULATE QUOTE</button></div>
+        <div class="quote-calc-controls"><label>VAT rate<input id="quoteVatRate" type="number" min="0" max="100" step="0.1" value="23"></label></div>
       </div>
       <div id="quoteCalculation" class="quote-result-card"><strong>Select a request above.</strong><span>The selected customer and Eircode will flow through the quote steps.</span></div>
-      <div id="sendQuoteArea" class="send-quote-area" hidden>
-        <div class="card-heading"><p class="eyebrow">STEP 5</p><h3>Prepare the quote email</h3></div>
-        <label>Optional message to customer<textarea id="quoteMessage" rows="4">Thank you for your quote request. We would be delighted to provide THE TEE BOX for your event.</textarea></label>
-        <div id="quoteEmailPreview" class="email-preview"></div>
+      <div class="quote-send-row" id="quoteSendRow" hidden>
         <button id="sendQuote" class="button button-gold" type="button">SEND QUOTE EMAIL</button>
         <p id="sendQuoteStatus" class="form-note"></p>
       </div>
@@ -253,7 +250,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.6</strong></div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.7</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
