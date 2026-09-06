@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Request a Quote | REV 1.6.1</title>
+<title>THE TEE BOX | Request a Quote | REV 1.6.3</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div class="revision-badge" aria-label="App revision">REV 1.6.1</div>
+<div class="revision-badge" aria-label="App revision">REV 1.6.3</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX Banner"></a>
@@ -142,44 +142,25 @@
     <div class="card-heading office-heading-row"><div><p class="eyebrow">QUOTE SUMMARY</p><h3>All quote requests</h3></div><div class="table-note">Oldest received first</div></div>
     <div class="quote-table-wrap">
       <table class="quote-table">
-        <thead><tr><th>Reference</th><th>Received</th><th>Customer</th><th>Requested</th><th>Eircode</th><th>Players</th><th>Status</th><th>Quote</th><th>Distance</th><th>Action</th></tr></thead>
-        <tbody id="quoteRequests"><tr><td colspan="10" class="empty-cell">No quote requests yet.</td></tr></tbody>
+        <thead><tr><th>Accepted</th><th>Reference</th><th>Received</th><th>Customer</th><th>Requested</th><th>Eircode</th><th>Players</th><th>Status</th><th>Quote</th><th>Distance</th><th>Action</th></tr></thead>
+        <tbody id="quoteRequests"><tr><td colspan="11" class="empty-cell">No quote requests yet.</td></tr></tbody>
       </table>
     </div>
   </div>
 
-  <div class="office-grid">
-    <div class="card office-panel">
-      <div class="card-heading"><p class="eyebrow">PRICING</p><h3>Quote pricing modules</h3></div>
-      <div class="pricing-grid">
-        <label>Full Day (8 Hours)<div class="price-input"><span>€</span><input id="priceFullDay" type="number" min="0" step="1"></div></label>
-        <label>Morning (4 Hours)<div class="price-input"><span>€</span><input id="priceMorning" type="number" min="0" step="1"></div></label>
-        <label>Afternoon (4 Hours)<div class="price-input"><span>€</span><input id="priceAfternoon" type="number" min="0" step="1"></div></label>
-        <label>Evening (4 Hours)<div class="price-input"><span>€</span><input id="priceEvening" type="number" min="0" step="1"></div></label>
-      </div>
-      <div class="card-heading office-subheading"><p class="eyebrow">TRAVEL COSTS</p><h3>Distance bands</h3></div>
-      <div class="pricing-grid">
-        <label>0 – 20 km<div class="price-input"><span>€</span><input id="travel0" type="number" min="0" step="1"></div></label>
-        <label>20 – 50 km<div class="price-input"><span>€</span><input id="travel20" type="number" min="0" step="1"></div></label>
-        <label>50 – 100 km<div class="price-input"><span>€</span><input id="travel50" type="number" min="0" step="1"></div></label>
-        <label>100+ km<div class="price-input"><span>€</span><input id="travel100" type="number" min="0" step="1"></div></label>
-        <label>VAT Rate<div class="price-input"><span>%</span><input id="vatRate" type="number" min="0" max="100" step="0.1" value="23"></div></label>
-      </div>
-      <button id="savePricing" class="button button-gold" type="button">SAVE PRICING</button><p id="pricingSaved" class="form-note"></p>
-    </div>
-    <div class="card office-panel quote-workflow-panel">
+  <div class="card office-panel quote-workflow-panel">
       <div class="card-heading"><p class="eyebrow">QUOTE WORKFLOW</p><h3>Selected quote</h3><p class="workflow-note">Work through the steps below in order.</p></div>
       <div id="quoteSelectionBadge" class="selection-badge">No request selected</div>
       <div class="workflow-steps">
         <div class="workflow-step">
           <div class="step-number">1</div>
-          <div class="workflow-step-content"><b>Open Google Maps</b><small>Use the business Eircode and the selected customer Eircode to view the driving route and distance.</small></div>
-          <button id="calculateTravel" class="button" type="button">CALCULATE DISTANCE</button>
+          <div class="workflow-step-content"><b>Calculate driving distance</b><small>Open Google Maps for an Eircode-to-Eircode driving route. Read the driving distance and enter it in Step 2.</small></div>
+          <div class="workflow-action-stack"><button id="calculateTravel" class="button" type="button">CALCULATE DISTANCE</button><small id="distanceMapStatus" class="workflow-status"></small></div>
         </div>
         <div class="workflow-step workflow-distance-step">
           <div class="step-number">2</div>
-          <div class="workflow-step-content"><b>Enter driving distance</b><small>Enter the driving distance shown by Google Maps.</small></div>
-          <div class="distance-entry"><label for="manualDistanceKm">Driving distance</label><div class="distance-input"><input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="25.4"><span>km</span></div></div>
+          <div class="workflow-step-content"><b>Enter driving distance</b><small>Enter the driving distance shown by Google Maps. The saved distance determines the travel charge.</small></div>
+          <div class="distance-entry"><label for="manualDistanceKm">Driving distance (km)</label><div class="distance-input"><input id="manualDistanceKm" type="number" min="0" step="0.1" placeholder="25.4" aria-label="Driving distance in kilometres"><span>km</span></div></div>
           <button id="useManualDistance" class="button" type="button">SAVE DISTANCE</button>
         </div>
         <div class="workflow-step">
@@ -204,30 +185,14 @@
         <button id="sendQuote" class="button button-gold" type="button">SEND QUOTE EMAIL</button>
         <p id="sendQuoteStatus" class="form-note"></p>
       </div>
-      <div id="quoteStatusActions" class="status-actions" hidden>
-        <button id="markAccepted" class="button" type="button">MARK ACCEPTED</button>
-        <button id="markDeposit" class="button button-gold" type="button">MARK DEPOSIT RECEIVED</button>
-        <button id="addJourney" class="button" type="button">ADD TO JOURNEY SCHEDULE</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="card office-panel travel-planner" id="travel-planner">
-    <div class="card-heading"><p class="eyebrow">TRAVEL PLANNER</p><h3>Calculate travel cost from customer Eircode</h3></div>
-    <div class="travel-grid">
-      <label>Customer Eircode<input id="travelEircode" type="text" placeholder="Select a quote request" readonly></label>
-      <label>THE TEE BOX Eircode<input id="baseEircode" type="text" value="E45 WC97" placeholder="E45 WC97"></label>
-      <div class="travel-action"><button id="planRoute" class="button" type="button">PLAN ROUTE TO CUSTOMER</button></div>
-    </div>
-    <div id="travelResult" class="travel-result"><strong>Select a quote request.</strong><span>Select a quote above. The quote workflow opens Google Maps, then lets you enter the driving distance manually.</span></div>
   </div>
 
   <div class="card office-panel journey-panel">
-    <div class="card-heading office-heading-row"><div><p class="eyebrow">OWNER JOURNEY SCHEDULE</p><h3>Confirmed customer journeys</h3></div><div class="table-note">Only accepted quotes with deposit received are scheduled</div></div>
+    <div class="card-heading office-heading-row"><div><p class="eyebrow">OWNER JOURNEY SCHEDULE</p><h3>Confirmed customer journeys</h3></div><div class="journey-filter"><label for="journeyDateFilter">Booking date</label><select id="journeyDateFilter"><option value="all">All dates</option></select></div></div>
     <div class="journey-table-wrap">
       <table class="journey-table">
-        <thead><tr><th>Date</th><th>Customer</th><th>Location</th><th>Session</th><th>Depart</th><th>Arrive</th><th>Route</th><th>Status</th></tr></thead>
-        <tbody id="journeyRows"><tr><td colspan="8" class="empty-cell">No confirmed journeys yet.</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Customer</th><th>Eircode</th><th>Session</th><th>Distance</th><th>Route</th><th>Status</th></tr></thead>
+        <tbody id="journeyRows"><tr><td colspan="7" class="empty-cell">No accepted quotes yet.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -244,11 +209,25 @@
         <label>Owner Phone<input id="ownerPhone" type="text"></label>
         <label>Owner Email<input id="ownerEmail" type="email"></label>
         <label>Business Eircode<input id="ownerEircode" type="text"></label>
-        <label class="full">Route Service Endpoint<input id="routeApiEndpoint" type="url" placeholder="https://your-backend.example.com/route"></label>
       </div>
-      <div class="admin-actions"><button id="saveAdmin" class="button button-gold" type="button">SAVE ADMIN SETTINGS</button><button id="resetAdminPin" class="button" type="button">RESET PIN TO 2468</button><button id="testRouteService" class="button" type="button">TEST ROUTE SERVICE</button><button id="lockAdmin" class="button" type="button">LOCK ADMIN</button></div><p id="routeTestResult" class="form-note"></p>
+      <p class="form-note admin-gmail-note"><strong>Gmail sending account:</strong> the Owner Email above is used when opening Gmail to prepare the quote. Change this address here when the business is handed over to a new owner; the new owner must be signed into that Gmail account in the browser.</p>
+      <div class="admin-pricing-section">
+        <div class="card-heading office-subheading"><p class="eyebrow">PRICING</p><h3>Quote & travel pricing</h3><p class="workflow-note">These values are used automatically by the Quote Workflow.</p></div>
+        <div class="pricing-grid admin-pricing-grid">
+          <label>Full Day (8 Hours)<div class="price-input"><span>€</span><input id="priceFullDay" type="number" min="0" step="1"></div></label>
+          <label>Morning (4 Hours)<div class="price-input"><span>€</span><input id="priceMorning" type="number" min="0" step="1"></div></label>
+          <label>Afternoon (4 Hours)<div class="price-input"><span>€</span><input id="priceAfternoon" type="number" min="0" step="1"></div></label>
+          <label>Evening (4 Hours)<div class="price-input"><span>€</span><input id="priceEvening" type="number" min="0" step="1"></div></label>
+          <label>0 – 20 km<div class="price-input"><span>€</span><input id="travel0" type="number" min="0" step="1"></div></label>
+          <label>20 – 50 km<div class="price-input"><span>€</span><input id="travel20" type="number" min="0" step="1"></div></label>
+          <label>50 – 100 km<div class="price-input"><span>€</span><input id="travel50" type="number" min="0" step="1"></div></label>
+          <label>100+ km<div class="price-input"><span>€</span><input id="travel100" type="number" min="0" step="1"></div></label>
+          <label>VAT Rate<div class="price-input"><span>%</span><input id="vatRate" type="number" min="0" max="100" step="0.1"></div></label>
+        </div>
+        <button id="savePricing" class="button button-gold" type="button">SAVE PRICING</button><p id="pricingSaved" class="form-note"></p>
+      </div>
+      <div class="admin-actions"><button id="saveAdmin" class="button button-gold" type="button">SAVE ADMIN SETTINGS</button><button id="resetAdminPin" class="button" type="button">RESET PIN TO 2468</button><button id="lockAdmin" class="button" type="button">LOCK ADMIN</button></div>
       <p id="adminSaved" class="form-note"></p>
-      <p class="form-note">The route endpoint must be a secure backend that accepts the origin and customer Eircodes and returns actual driving distance and duration. The supplied Cloudflare Worker is configured for Google Geocoding + Google Routes. The supplied backend starter is in <strong>backend/cloudflare-worker.js</strong>.</p>
     </div>
   </div>
 </div>
@@ -264,7 +243,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.1</strong></div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.3</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
