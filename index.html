@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Request a Quote | REV 1.6.4</title>
+<title>THE TEE BOX | Request a Quote | REV 1.6.6</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div class="revision-badge" aria-label="App revision">REV 1.6.4</div>
+<div class="revision-badge" aria-label="App revision">REV 1.6.6</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX Banner"></a>
@@ -233,6 +233,16 @@
 </div>
 </section>
 
+<div class="modal-backdrop" id="declineModal" hidden>
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="declineTitle">
+<button class="modal-close" id="closeDeclineModal" type="button" aria-label="Close">×</button>
+<p class="eyebrow">QUOTE REQUEST</p><h2 id="declineTitle">Decline quote</h2>
+<p id="declineCustomerSummary"></p>
+<label>Message to customer<textarea id="declineMessage" rows="6" placeholder="Please enter the reason you are unable to proceed with this request."></textarea></label>
+<div class="modal-actions"><button class="button" id="cancelDecline" type="button">CANCEL</button><button class="button button-gold" id="openDeclineEmail" type="button">OPEN DECLINE EMAIL</button></div>
+<p id="declineStatus" class="form-note"></p>
+</div></div>
+
 <div class="modal-backdrop" id="confirmationModal" hidden>
 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmationTitle">
 <button class="modal-close" id="closeModal" type="button" aria-label="Close">×</button>
@@ -243,7 +253,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.4</strong></div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.6.6</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
