@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>THE TEE BOX | Request a Quote | REV 1.4.0</title>
+<title>THE TEE BOX | Request a Quote | REV 1.5.0</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<div class="revision-badge" aria-label="App revision">REV 1.4.0</div>
+<div class="revision-badge" aria-label="App revision">REV 1.5.0</div>
 <header class="site-header">
   <div class="header-inner">
     <a class="brand" href="#home"><img src="assets/The TEE BOX Banner.png" alt="THE TEE BOX Banner"></a>
@@ -142,8 +142,8 @@
     <div class="card-heading office-heading-row"><div><p class="eyebrow">QUOTE SUMMARY</p><h3>All quote requests</h3></div><div class="table-note">Oldest received first</div></div>
     <div class="quote-table-wrap">
       <table class="quote-table">
-        <thead><tr><th>Reference</th><th>Received</th><th>Customer</th><th>Requested</th><th>Eircode</th><th>Players</th><th>Status</th><th>Quote</th><th></th></tr></thead>
-        <tbody id="quoteRequests"><tr><td colspan="9" class="empty-cell">No quote requests yet.</td></tr></tbody>
+        <thead><tr><th>Reference</th><th>Received</th><th>Customer</th><th>Requested</th><th>Eircode</th><th>Players</th><th>Status</th><th>Quote</th><th>Distance</th><th>Action</th></tr></thead>
+        <tbody id="quoteRequests"><tr><td colspan="10" class="empty-cell">No quote requests yet.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -172,7 +172,8 @@
       <button id="calculateQuote" class="button button-gold" type="button">CALCULATE QUOTE</button>
       <div id="quoteCalculation" class="travel-result"><strong>Select a request from the table above.</strong><span>The customer Eircode will be loaded automatically.</span></div>
       <div id="sendQuoteArea" class="send-quote-area" hidden>
-        <label>Message to customer<textarea id="quoteMessage" rows="5">Hi, thanks for your quote request. Please see the quote details below.</textarea></label>
+        <label>Message to customer<textarea id="quoteMessage" rows="5">Thank you for your quote request. We would be delighted to provide THE TEE BOX for your event.</textarea></label>
+        <div id="quoteEmailPreview" class="email-preview"></div>
         <button id="sendQuote" class="button button-gold" type="button">PREPARE QUOTE EMAIL</button>
         <p id="sendQuoteStatus" class="form-note"></p>
       </div>
@@ -218,9 +219,9 @@
         <label>Business Eircode<input id="ownerEircode" type="text"></label>
         <label class="full">Route Service Endpoint<input id="routeApiEndpoint" type="url" placeholder="https://your-backend.example.com/route"></label>
       </div>
-      <div class="admin-actions"><button id="saveAdmin" class="button button-gold" type="button">SAVE ADMIN SETTINGS</button><button id="lockAdmin" class="button" type="button">LOCK ADMIN</button></div>
+      <div class="admin-actions"><button id="saveAdmin" class="button button-gold" type="button">SAVE ADMIN SETTINGS</button><button id="testRouteService" class="button" type="button">TEST ROUTE SERVICE</button><button id="lockAdmin" class="button" type="button">LOCK ADMIN</button></div><p id="routeTestResult" class="form-note"></p>
       <p id="adminSaved" class="form-note"></p>
-      <p class="form-note">The route endpoint must be a secure backend that accepts the origin and customer Eircodes and returns driving distance and duration. The supplied backend starter is in <strong>backend/cloudflare-worker.js</strong>.</p>
+      <p class="form-note">The route endpoint must be a secure backend that accepts the origin and customer Eircodes and returns actual driving distance and duration. The supplied Cloudflare Worker is configured for Google Geocoding + Google Routes. The supplied backend starter is in <strong>backend/cloudflare-worker.js</strong>.</p>
     </div>
   </div>
 </div>
@@ -236,7 +237,7 @@
 <button class="button button-gold button-full" id="modalDone" type="button">DONE</button>
 </div></div>
 </main>
-<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.4.0</strong></div></footer>
+<footer class="site-footer"><div>THE TEE BOX</div><div>APP REVISION <strong>REV 1.5.0</strong></div></footer>
 <script src="js/app.js"></script>
 </body>
 </html>
