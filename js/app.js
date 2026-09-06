@@ -1,4 +1,4 @@
-/* THE TEE BOX — REV 1.6.3 */
+/* THE TEE BOX — REV 1.6.4 */
 (() => {
 "use strict";
 const now=new Date();
@@ -12,6 +12,28 @@ const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${Str
 const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
 const fmt=d=>new Intl.DateTimeFormat("en-IE",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(d);
 function getRequests(){try{return JSON.parse(localStorage.getItem("teeBoxQuoteRequests")||"[]")}catch{return[]}}
+
+// Restore the four Office test quote requests used during development.
+// They are added once by stable test IDs, so they never duplicate on refresh.
+function ensureTestQuoteRequests(){
+  const existing=getRequests();
+  const testIds=new Set(existing.map(r=>r.id));
+  const tests=[
+    {id:"test-quote-001",reference:"TB001-01",name:"John Murphy",phone:"087 123 4567",email:"john@example.com",eircode:"X91 N274",date:"Saturday, 12 September 2026",period:"Full Day",duration:"8 Hours",people:"4",notes:"Birthday round"},
+    {id:"test-quote-002",reference:"TB002-01",name:"Sarah Kelly",phone:"086 555 0182",email:"sarah@example.com",eircode:"E45 DV25",date:"Sunday, 13 September 2026",period:"Morning",duration:"4 Hours",people:"6+",notes:"Friends group"},
+    {id:"test-quote-003",reference:"TB003-01",name:"Mark Ryan",phone:"085 442 1988",email:"mark@example.com",eircode:"X91 N274",date:"Saturday, 19 September 2026",period:"Afternoon",duration:"4 Hours",people:"8",notes:"Corporate event"},
+    {id:"test-quote-004",reference:"TB004-01",name:"Aoife Walsh",phone:"089 210 4455",email:"aoife@example.com",eircode:"E45 DV25",date:"Sunday, 20 September 2026",period:"Evening",duration:"4 Hours",people:"2",notes:"Practice session"}
+  ];
+  let changed=false;
+  for(let i=0;i<tests.length;i++){
+    const t=tests[i];
+    if(!testIds.has(t.id)){
+      existing.push({...t,status:"New",createdAt:new Date(Date.now()-(tests.length-i)*60000).toISOString(),isTestQuote:true});
+      changed=true;
+    }
+  }
+  if(changed)saveRequests(existing);
+}
 function saveRequests(v){localStorage.setItem("teeBoxQuoteRequests",JSON.stringify(v))}
 function getJourneys(){try{return JSON.parse(localStorage.getItem("teeBoxJourneys")||"[]")}catch{return[]}}
 function saveJourneys(v){localStorage.setItem("teeBoxJourneys",JSON.stringify(v))}
@@ -247,5 +269,5 @@ function bind(){
 }
 window.addEventListener("storage",()=>{if($("officeDashboard")&&!$("officeDashboard").hidden)renderOffice()});
 window.addEventListener("pageshow",()=>{state.viewDate=new Date(new Date().getFullYear(),new Date().getMonth(),1);renderCalendar();renderSlots()});
-bind();renderCalendar();renderSlots();
+ensureTestQuoteRequests();bind();renderCalendar();renderSlots();
 })();
