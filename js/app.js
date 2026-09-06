@@ -129,7 +129,7 @@ function openDeclineEmail(){
 function renderOffice(){
   const rs=sortRequests(repairRequests());
   $("newQuoteCount").textContent=rs.filter(r=>r.status==="New").length;
-  $("pendingQuoteCount").textContent=rs.filter(r=>["Quote Sent to customer","Quote Sent","Accepted","Deposit Received"].includes(r.status)).length;
+  if($("pendingQuoteCount"))$("pendingQuoteCount").textContent=rs.filter(r=>["Quote Sent to customer","Quote Sent","Accepted","Deposit Received"].includes(r.status)).length;
   $("journeyCount").textContent=rs.filter(r=>r.acceptedAt).length;
   $("activeQuoteValue").textContent=`€${activeQuoteValue(rs).toFixed(2)}`;
   $("acceptedQuoteValue").textContent=`€${acceptedQuoteValue(rs).toFixed(2)}`;
